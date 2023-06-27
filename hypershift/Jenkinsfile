@@ -1,0 +1,284 @@
+def COLOR_MAP = [
+    'SUCCESS': 'good', 
+    'UNSTABLE': 'warning',
+    'FAILURE': 'danger',
+]
+
+def cDoanSlackId = "UTJKX9S8Y"
+def rJungSlackId = "UU9MCHJ1L"
+
+def validateSDHostingClusterName = [
+    // TODO: should NOT be empty, null, or local-cluster
+]
+
+pipeline {
+    options {
+        buildDiscarder(logRotator(daysToKeepStr: '30'))
+        timeout(time: 8, unit: 'HOURS')
+    }
+    agent {
+        docker {
+            image 'quay.io/stolostron/acm-qe:go-2.1.6'
+            registryUrl 'https://quay.io/stolostron/acm-qe'
+            registryCredentialsId '0089f10c-7a3a-4d16-b5b0-3a2c9abedaa2'
+            args '--network host -u 0:0 -p 3000:3000'
+        }
+    }
+    parameters {
+        string (name: 'MCE_ACM_BUILD', defaultValue: '', description: 'Optional: Build number for ACM/MCE downstream version. (if empty, polls for the latest downstream version')
+        string(name: 'HUB_NAME', defaultValue: '', description: 'ACM Hub Name')
+        string(name: 'HUB_API_URL', defaultValue: '', description: 'ACM Hub API URL')
+        string(name: 'HUB_USER', defaultValue: 'kubeadmin', description: 'ACM Hub User Name')
+        string(name: 'HUB_PASSWORD', defaultValue: '', description: 'ACM Hub Password')
+        string(name: 'HOSTING_CLUSTER_NAME', defaultValue: '', description: 'Hosting Cluster Managed Cluster Name')
+        // string(name: 'REMOTE_HOSTING_CLUSTER_API', defaultValue: '', description: 'Hosting Cluster API URL')
+        // string(name: 'REMOTE_HOSTING_CLUSTER_USER', defaultValue: '', description: 'Hosting Cluster API Username')
+        // string(name: 'REMOTE_HOSTING_CLUSTER_PASSWORD', defaultValue: '', description: 'Hosting Cluster API Password')
+        string(name: 'REGION', defaultValue: 'us-east-1', description: 'The AWS Region for the OIDC S3 and credential secrets')
+        string(name: 'S3_BUCKET_NAME', defaultValue: 'acmqe-hypershift', description: 'S3 Bucket for the OIDC S3 secret')
+        string(name: 'BASE_DOMAIN', defaultValue: 'qe.red-chesterfield.com', description: 'AWS Base Domain for the credential and DNS secrets')
+        string(name: 'EXT_DNS_DOMAIN', defaultValue: 'acmqe-hs.qe.red-chesterfield.com', description: 'AWS Public Domain Filter for the DNS secret')
+        string(name: 'ACM_HC_NODE_POOL_REPLICAS', defaultValue: '1', description: 'Node Pool Replicas count for ACM (local-cluster hosting) hosted cluster.')
+        string(name: 'ACM_HC_OCP_RELEASE_IMAGE', defaultValue: 'quay.io/openshift-release-dev/ocp-release:4.13.1-x86_64', description: 'OCP Release Image for ACM (local-cluster hosting) hosted cluster.')
+        string(name: 'ACM_HC_INSTANCE_TYPE', defaultValue: 't3.xlarge', description: 'Instance Type for ACM (local-cluster hosting) hosted cluster.')
+        booleanParam(name: 'SKIP_SD_SCENARIO', defaultValue: false, description: 'Skip the SD test scenario stage')
+        booleanParam(name: 'SKIP_ACM_HC_SCENARIO', defaultValue: false, description: 'Skip the ACM HC test scenario stage')
+        // booleanParam(name: 'SKIP_ACM_HC_DESTROY', defaultValue: false, description: 'Skip the ACM HC destroy stage for ACM HC creation. Must have ACM_HC_SCENARIO enabled.')
+        // booleanParam(name: 'SKIP_CLC_SCENARIO', defaultValue: false, description: 'Skip the ACM CLC test scenario stage')
+    }
+    environment {
+        CI = 'true'
+        SLACK_CHANNEL = '#acm-hypershift-notifications'
+        //SLACK_CHANNEL = '#dh-test'
+        SCRIPT_DIR = "${WORKSPACE}/ci/components/hypershift/scripts"
+
+        AWS_ACCESS_KEY_ID = credentials('DHUYNH_AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials ('DHUYNH_AWS_SECRET_ACCESS_KEY_ID')
+        AWS_CREDS_FILE = credentials ('dhu-aws-creds-file')
+        PULL_SECRET_FILE = credentials ('dhu-ocp-pull-secret')
+        AWS_SSH_PRIVATE_KEY = credentials ('clc-private-key')
+        AWS_SSH_PUBLIC_KEY = credentials ('clc-public-key')
+        GH_TOKEN = credentials('vincent-github-token')
+
+        OCP_RELEASE_IMAGE='quay.io/openshift-release-dev/ocp-release:4.12.0-x86_64'
+        CLUSTER_NAME_PREFIX='qe-'
+        INSTANCE_TYPE="${params.ACM_HC_INSTANCE_TYPE}"
+        OC_COMMAND="oc"
+        HYPERSHIFT_COMMAND="hypershift"
+        // IMPORT_CLUSTER_API_URL=params.REMOTE_HOSTING_CLUSTER_API
+        // IMPORT_CLUSTER_USER=params.REMOTE_HOSTING_CLUSTER_USER
+        // IMPORT_CLUSTER_PASSWORD=params.REMOTE_HOSTING_CLUSTER_PASSWORD
+    }
+    stages {
+        stage('Clean up workspace') {
+            steps {
+                script {
+                    echo "Cleaning up workspace..."
+                    sh 'rm -rf hypershift'
+                }
+            }
+        } 
+        stage('Build') {
+            steps {
+                script {
+                    echo "==== go version ===="
+                    sh 'go version'
+                    echo "==== oc version ===="
+                    sh 'oc version'
+                    echo "==== Login to hub cluster ===="
+                    sh "oc login ${HUB_API_URL} -u ${HUB_USER} -p ${HUB_PASSWORD} --insecure-skip-tls-verify"
+                    sh "chmod -R +x ${SCRIPT_DIR}"
+                }
+            }
+        }
+        stage('Delete all existing managed-clusters on the hub') {
+            steps {
+                script {
+                    sh "cd ${SCRIPT_DIR}"
+                    sh "${SCRIPT_DIR}/setup/disableHypershiftForHostingCluster.sh" 
+
+                    echo "==== Clean up managed clusters on the existing hub ===="
+                    echo "ensure all resources are gone, including klusterlets"
+                    sh "${SCRIPT_DIR}/setup/deleteManagedClusters.sh" 
+
+                    // TODO: ensure clean up hostedclusters, deployments, manifestworks, etc.
+                }
+            }
+        }
+        stage('Refresh ACM on the hub with the latest downstream image') {
+            steps {
+                script {
+                    echo "==== Installing latest ACM/MCE downstream===="
+                    if (env.MCE_ACM_BUILD ==  '' || env.MCE_ACM_BUILD == null) {
+                        echo "ACM build not provided by user. Fetching latest ACM DS..."
+                        env.MCE_ACM_BUILD = sh(script: "curl -X GET https://quay.io/api/v1/repository/acm-d/acm-custom-registry/tag/ | jq -r '.tags[] | select(.name | startswith(\"2.7\")) | .name' | sort -r | head -1", 
+                            returnStdout: true).trim()
+                    }
+                    else {
+                        echo "ACM build provided by user. Skipping ACM version fetch."
+                    }
+                    echo "ACM Latest Downstream: ${env.MCE_ACM_BUILD}"
+
+                    // TODO: Skip if current DS is the same version
+                    
+                    // Call ACM Refresh Job using ${env.ACM_LATEST_DOWNSTREAM}
+                    def buildResult = build propagate: false, job: 'acm-install', parameters: [
+                        string(name: 'ocp_auth_method', value: "kubeconfig"), 
+                        string(name: 'ocp_name', value: "${params.HUB_NAME}"), 
+                        string(name: 'acm_release_version', value: "2.7"), 
+                        string(name: 'acm_snapshot_tag', value: "${env.MCE_ACM_BUILD}"),
+                        booleanParam(name: 'enableClusterBackup', value: "true"),
+                        booleanParam(name: 'enableClusterProxyAddon', value: "true"),
+                        booleanParam(name: 'skip_provider_button', value: "true"),
+                        booleanParam(name: 'refresh', value: "true")]
+                    
+                    status = buildResult.currentResult  
+                    echo "ACM Hub Build Refresh Status - ${status}"   
+                    if (status == 'FAILURE') {
+                        error("ACM Hub Install/Refresh failed. Check install job logs for more info.")
+                    }
+                }
+            }
+        }
+        stage('Enable Hypershift for local-cluster') {
+            steps {
+                script {
+                    echo "==== Enable hypershift feature for local-cluster ===="
+                    echo "Creating secrets and enable hypershift-addon for local-cluster..."
+                    sh "${SCRIPT_DIR}/setup/enableHypershiftForLocalCluster.sh"
+                }
+            }
+        }
+        stage('Install Hypershift Binary') {
+            steps {
+                script {
+                    echo "==== Install the Hypershift Binary Bundled with ACM ===="
+                    sh "${SCRIPT_DIR}/setup/installHypershiftBinary.sh"
+                    env.HYPERSHIFT_VERSION = sh(script: "hypershift version", returnStdout: true).trim()
+                    echo "Hypershift env variable: ${env.HYPERSHIFT_VERSION}"
+                }
+            }
+        }
+        // Hypershift pre-req, also a CLC smoke test (import cluster)
+        stage('Import an AWS managed cluster into the hub as a remote hosting cluster') {
+            steps {
+                script {
+                    echo "==== Import an AWS managed cluster into the hub cluster ===="
+                    sh "cd ${SCRIPT_DIR}"
+                    sh "${SCRIPT_DIR}/setup/importCluster.sh"
+                    sh 'echo'
+                    
+                    echo "==== Set-up imported cluster as a hosting cluster ===="
+                    echo "Creating secrets and enable hypershift-addon for hosting cluster..."
+                    sh "${SCRIPT_DIR}/setup/enableHypershiftForHostingCluster.sh"
+
+                    status = currentBuild.currentResult
+                    if (status == 'FAILURE') {
+                        error("ACM import cluster failed. Check install job logs for more info.")
+                    }
+                }
+            }
+        }
+        stage('Set-up and run hypershift scenario for SD') {
+            when {
+                expression { params.SKIP_SD_SCENARIO == false }
+            }
+            steps {
+                script {
+                    sh "cd ${SCRIPT_DIR}"
+                    sh "${SCRIPT_DIR}/hypershift-sd.sh" 
+                    echo "==== hypershift installed version ===="
+                    sh "hypershift version"
+                    env.HYPERSHIFT_VERSION = sh(script: "hypershift version", returnStdout: true).trim()
+                }
+                // TODO: run SF tests against same clusters, then delete clusters
+            }
+            post {
+                always {
+                    slackSend channel: "${env.SLACK_CHANNEL}",
+                        color: COLOR_MAP[currentBuild.currentResult],
+                        message: "*${currentBuild.currentResult}:* Daily ACM Hypershift E2E Smoke Test (SD/Manifestwork) on build `${env.MCE_ACM_BUILD}` \n Jenkins Job build ${env.BUILD_NUMBER}\n Hypershift version:`${env.HYPERSHIFT_VERSION}`\n More info at: ${env.BUILD_URL}\n Poke Poke! <@$cDoanSlackId> <@$rJungSlackId>"
+                }
+            }
+        }
+        // This stage expects hypershift to be enabled for local-cluster and in good state
+        // TODO: should run in parallel with SD case.
+        stage('Run create hypershift hosted cluster with ACM/local-cluster scenario') {
+            when {
+                expression { params.SKIP_ACM_HC_SCENARIO == false }
+            }
+            steps {
+                script {
+                    sh "cd ${SCRIPT_DIR}"
+                    sh "${SCRIPT_DIR}/createHostedClusterAWS.sh" 
+                }
+            }
+            post {
+                always {
+                    // TODO: to CLC channel?
+                    slackSend channel: "${env.SLACK_CHANNEL}",
+                        color: COLOR_MAP[currentBuild.currentResult],
+                        message: "*${currentBuild.currentResult}:* Daily ACM Hypershift E2E Smoke Test (local-cluster) on build `${env.MCE_ACM_BUILD}` \n Jenkins Job build ${env.BUILD_NUMBER}\n Hypershift version:`${env.HYPERSHIFT_VERSION}`\n More info at: ${env.BUILD_URL}"
+                }
+            }
+        }
+        // TODO
+        // stage('Run Hypershift UI basic scenarios') {
+        //     when {
+        //         expression { params.SKIP_ACM_HC_SCENARIO == false && currentBuild.result == 'SUCCESS' }
+        //     }
+        //     steps {
+        //         script {
+        //            TODO
+        //         }
+        //     }
+        // }
+        // TODO
+        // stage('Run Cluster lifecycle basic scenarios') {
+        //     steps {
+        //         script {
+                   // TODO
+        //         }
+        //     }
+        // }
+        // TODO
+        // stage('Run Server foundation basic scenarios') {
+        //     steps {
+        //         script {
+                    // Apply to all managedclusters - some tests hypershift specific?
+                    // def buildResult = build propagate: false, job: 'qe-acm-automation-poc/server_foundation_e2e_tests', parameters: [
+                    //     string(name: 'ocp_auth_method', value: "kubeconfig"), 
+                    //     string(name: 'ocp_name', value: "${params.HUB_NAME}"), 
+                    //     string(name: 'acm_release_version', value: "2.7"), 
+                    //     string(name: 'acm_snapshot_tag', value: "${env.MCE_ACM_BUILD}"),
+                    //     booleanParam(name: 'enableClusterBackup', value: "true"),
+                    //     booleanParam(name: 'enableClusterProxyAddon', value: "true"),
+                    //     booleanParam(name: 'skip_provider_button', value: "true"),
+                    //     booleanParam(name: 'refresh', value: "true")]
+                    
+                    // status = buildResult.currentResult  
+                    // echo "ACM Hub Build Refresh Status - ${status}"   
+                    // if (status == 'FAILURE') {
+                    //     error("ACM Hub Install/Refresh failed. Check install job logs for more info.")
+                    // }
+        //         }
+        //     }
+        // }
+        // TODO
+        // stage('Run Discovery basic scenarios') {
+        //     steps {
+        //         script {
+                   // TODO call discovery pipeline job
+        //         }
+        //     }
+        // }
+        // TODO
+        // stage('Run Hosted cluster destroy basic scenarios') {
+        //     steps {
+        //         script {
+                   // TODO
+        //         }
+        //     }
+        // }        
+    }
+} 
