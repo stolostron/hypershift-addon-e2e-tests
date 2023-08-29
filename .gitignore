@@ -1,7 +1,6 @@
-e2e-go/
-
 # Ignore files
 options.yaml
+*.test
 .idea/
 
 # Whitelist some files

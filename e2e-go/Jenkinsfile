@@ -1,0 +1,126 @@
+pipeline {
+    options {
+        buildDiscarder(logRotator(daysToKeepStr: '30'))
+        timeout(time: 8, unit: 'HOURS')
+    }
+    agent {
+        docker {
+            image 'quay.io/stolostron/acm-qe:go-2.1.6'
+            registryUrl 'https://quay.io/stolostron/acm-qe'
+            registryCredentialsId '0089f10c-7a3a-4d16-b5b0-3a2c9abedaa2'
+            args '--network host -u 0:0'
+        }
+    }
+    parameters {
+        string(name: 'OCP_HUB_CLUSTER_USER', defaultValue: 'kubeadmin', description: 'OCP Hub User Name')
+        string(name: 'OCP_HUB_CLUSTER_PASSWORD', defaultValue: '', description: 'OCP Hub Password')
+        string(name: 'OCP_HUB_CLUSTER_API_URL', defaultValue: '', description: 'OCP Hub API URL')
+        string(name: 'HCP_OCP_IMAGE_VERSION', defaultValue: '4.14.0-ec.4-multi', description: 'provide ocp image version and arch used to provision')
+        string(name: 'HCP_OCP_IMAGE_REGISTRY', defaultValue: 'quay.io/openshift-release-dev/ocp-release', description: 'provide ocp image registry used to provision')
+        
+        string(name: 'HCP_CLUSTER_NAME', defaultValue: '', description: 'hosted cluster name to target, not needed for creation')
+        string(name: 'HCP_NAMESPACE', defaultValue: 'local-cluster', description: 'namespace for the hcp')
+        string(name: 'HCP_REGION', defaultValue: '4.14.0-ec.4-multi', description: 'region for the hcp creation')
+        string(name: 'HCP_NODE_POOL_REPLICAS', defaultValue: '3', description: 'number of node replicas for hcp creation')
+        string(name: 'HCP_INSTANCE_TYPE', defaultValue: 'm6a.xlarge', description: 'instance type for the hcp creation')
+        string(name: 'HCP_BASE_DOMAIN_NAME', defaultValue: 'dev09.red-chesterfield.com', description: 'provide ocp image version and arch used to provision')
+        
+        string(name: 'TEST_TAGS', defaultValue: '', description: 'label tags to run the test with')
+        choice(name: 'TEST_STAGE', choices: ['create','destroy'], description: 'The test stage of tests, the supported stage is create,destroy')
+        string(name: 'CLOUD_PROVIDERS', defaultValue: 'aws', description: 'Select clusters to create, the supported value is aws only')
+    }
+    environment {
+        CI = 'true'
+    }
+    stages {
+        stage('Build') {
+            // Setup the build environment
+            // Ensure hypershift cli is installed and available
+            steps {
+                script {
+                    sh """
+                        if [[ -z "${OCP_HUB_CLUSTER_PASSWORD}" || -z "${OCP_HUB_CLUSTER_API_URL}" ]]; then
+                            echo "Aborting test.. OCP HUB details are required for the test execution"
+                            exit 1
+                        fi
+                        set +e
+                        
+                        oc login --insecure-skip-tls-verify -u ${params.OCP_HUB_CLUSTER_USER} -p ${params.OCP_HUB_CLUSTER_PASSWORD} ${params.OCP_HUB_CLUSTER_API_URL}
+                        if [ `oc get configmap -n default clc-hcp-build-number --ignore-not-found --no-headers | wc -l` > 0 ]; then
+                            oc delete configmap -n default clc-hcp-build-number --ignore-not-found
+                        fi
+                        
+                        oc create configmap clc-hcp-build-number -n default --from-literal=BUILD_NUM=$buildNumberInsOcp"
+
+                        rm -rf ./hub_kubeconfig ./results
+                        mkdir -p {hub_kubeconfig,results}
+                        KUBECONFIG=\$(pwd)/hub_kubeconfig/kubeconfig oc login --insecure-skip-tls-verify -u \$OCP_HUB_CLUSTER_USER -p \$OCP_HUB_CLUSTER_PASSWORD \$OCP_HUB_CLUSTER_API_URL
+                        set -e
+                    """
+                }
+            }
+        }
+        stage('Create Cluster') {
+            when {
+                allOf {
+                    expression { params.TEST_STAGE == 'create' }
+                    expression { params.CLOUD_PROVIDERS != '' }
+                    expression { params.CLOUD_PROVIDERS != null}
+                }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'clc-hcp-options-file', variable: 'OPTIONS_FILE')]) {
+                    script {
+                        sh """
+                            export OCP_HUB_CLUSTER_USER="${params.OCP_HUB_CLUSTER_USER}"
+                            export OCP_HUB_CLUSTER_PASSWORD="${params.OCP_HUB_CLUSTER_PASSWORD}"
+                            export OCP_HUB_CLUSTER_API_URL="${params.OCP_HUB_CLUSTER_API_URL}"
+                            export HCP_CLUSTER_NAME="${params.HCP_CLUSTER_NAME}"
+                            export HCP_NAMESPACE="${params.HCP_NAMESPACE}"
+                            export HCP_REGION="${params.HCP_REGION}"
+                            export HCP_NODE_POOL_REPLICAS="${params.HCP_NODE_POOL_REPLICAS}"
+                            export HCP_BASE_DOMAIN_NAME="${params.HCP_BASE_DOMAIN_NAME}"
+                            export HCP_RELEASE_IMAGE="${params.HCP_RELEASE_IMAGE}"
+                            export HCP_INSTANCE_TYPE="${params.HCP_INSTANCE_TYPE}"
+                            
+                            export AWS_CREDS=~/aws/aws
+                            export PULL_SECRET_FILE=~/pull-secret.txt
+
+                            cat $OPTIONS_FILE > options.yaml
+                            chmod 777 options.yaml
+                            shopt -s extglob
+
+                            id=$BUILD_NUMBER
+                            export JUNIT_REPORT_FILE="\$(pwd)/results/create_cluster_result.xml"
+                            
+                            KUBECONFIG=\$(pwd)/hub_kubeconfig/kubeconfig ginkgo -v --label-filter='create && \$(echo -n $CLOUD_PROVIDERS | sed 's/,/||/g') -p pkg/test -- -options=../../../options.yaml
+                            KUBECONFIG=\$(pwd)/hub_kubeconfig/kubeconfig ginkgo --label-filter="(${IMPORT_KUBERNETES_CLUSTERS})&&${IMPORT_METHOD}" -p pkg/test/import_cluster -v=1
+                        """
+                    }
+                }
+            }
+        }
+        stage('Destroy Cluster') {
+            when {
+                anyOf {
+                    expression { params.TEST_STAGE == 'destroy' }
+                }
+            }
+            steps {
+                script {
+                    sh """
+                        export JUNIT_REPORT_FILE="\$(pwd)/results/destroy_cluster_result.xml"
+                        KUBECONFIG=\$(pwd)/hub_kubeconfig/kubeconfig oc login --insecure-skip-tls-verify -u \$OCP_HUB_CLUSTER_USER -p \$OCP_HUB_CLUSTER_PASSWORD \$OCP_HUB_CLUSTER_API_URL
+                        KUBECONFIG=\$(pwd)/hub_kubeconfig/kubeconfig ginkgo --label-filter=\$(echo -n \$cluster_tags | sed 's/,/||/g') -p pkg/test/destroy_cluster -v=1
+                    """
+                }
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'results/*.xml', followSymlinks: false
+            junit 'results/*.xml'
+        }
+    }
+}
