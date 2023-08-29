@@ -95,7 +95,6 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	defer gexec.KillAndWait()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	gomega.Eventually(session).Should(gexec.Exit(0))
-	utils.PrintOutput(session)
 
 	// TODO check if hypershift addon is enabled on the hub
 	// If ACM 2.8 or below, then enable it if not enabled
@@ -149,35 +148,6 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		ginkgo.GinkgoWriter.Println(err)
 	}
-
-	// TODO: decide: should we just wrap the golang around the hypershift cli through shell scripts?
-	// TODO: create hypershift cluster
-	// TODO: check cluster health
-	// TODO: check cluster version etc
-	// TODO: add options such arch type, instance type, node count, cluster_name, etc
-	// TODO: integrate docker
-	// TODO: integrate options.yaml?
-	// TODO: integrate jenkins
-	// TODO: generate junit report
-	// TODO: give to vincent
-
-	// TODO: Cypress hypershift
-	// bootstrap v12, use neo-cypress?
-	// check hypershift screens
-	// check hypershift nodepools
-	// check s3 secret
-
-	// checks addon namespace exists and creates it
-	// _, err = kubeClient.CoreV1().Namespaces().Get(context.TODO(), defaultInstallNamespace, metav1.GetOptions{})
-	// if apierrors.IsNotFound(err) {
-	// 	namespace := &corev1.Namespace{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name: defaultInstallNamespace,
-	// 		},
-	// 	}
-	// 	_, err = kubeClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
-	// 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
-	// }
 }, func() {})
 
 var _ = ginkgo.ReportAfterSuite("HyperShift E2E Report", func(report ginkgo.Report) {

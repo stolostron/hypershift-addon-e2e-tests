@@ -31,11 +31,23 @@ pipeline {
     }
     environment {
         CI = 'true'
+        SCRIPT_DIR = "${WORKSPACE}/hypershift/scripts"
+        AWS_CREDS_FILE = credentials ('dhu-aws-creds-file')
+        PULL_SECRET_FILE = credentials ('dhu-ocp-pull-secret')
     }
     stages {
+        // stage('Clean up workspace') {
+        //     steps {
+        //         script {
+        //             echo "Cleaning up workspace..."
+        //             sh 'rm -rf hypershift'
+        //         }
+        //     }
+        // } 
         stage('Build') {
             // Setup the build environment
             // Ensure hypershift cli is installed and available
+            // run setup script
             steps {
                 script {
                     sh """
@@ -43,20 +55,37 @@ pipeline {
                             echo "Aborting test.. OCP HUB details are required for the test execution"
                             exit 1
                         fi
+                        echo "==== go version ===="
+                        sh 'go version'
+                        echo "==== oc version ===="
+                        sh 'oc version'
+                        echo "==== login to hub ===="
+                        
                         set +e
                         
                         oc login --insecure-skip-tls-verify -u ${params.OCP_HUB_CLUSTER_USER} -p ${params.OCP_HUB_CLUSTER_PASSWORD} ${params.OCP_HUB_CLUSTER_API_URL}
                         if [ `oc get configmap -n default clc-hcp-build-number --ignore-not-found --no-headers | wc -l` > 0 ]; then
                             oc delete configmap -n default clc-hcp-build-number --ignore-not-found
                         fi
-                        
                         oc create configmap clc-hcp-build-number -n default --from-literal=BUILD_NUM=$buildNumberInsOcp"
 
+                        sh "chmod -R +x ${SCRIPT_DIR}"
+                        
                         rm -rf ./hub_kubeconfig ./results
                         mkdir -p {hub_kubeconfig,results}
                         KUBECONFIG=\$(pwd)/hub_kubeconfig/kubeconfig oc login --insecure-skip-tls-verify -u \$OCP_HUB_CLUSTER_USER -p \$OCP_HUB_CLUSTER_PASSWORD \$OCP_HUB_CLUSTER_API_URL
                         set -e
                     """
+                }
+            }
+        }
+        stage('Install Hypershift Binary') {
+            steps {
+                script {
+                    echo "==== Install the Hypershift Binary Bundled with ACM ===="
+                    sh "${SCRIPT_DIR}/setup/installHypershiftBinary.sh"
+                    env.HYPERSHIFT_VERSION = sh(script: "hypershift version", returnStdout: true).trim()
+                    echo "Hypershift env variable: ${env.HYPERSHIFT_VERSION}"
                 }
             }
         }
