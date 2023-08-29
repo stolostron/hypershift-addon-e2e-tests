@@ -1,0 +1,30 @@
+# Resource prefix, priority:
+# 1. Using the $USER environment variable.
+# 2. From options.yaml
+options: 
+  owner: 
+
+  clusters:
+    clusterNamePrefix: 'acmqe-hc-'
+    aws:
+      clusterName: ''
+      clusterSet: ''
+      infraID: ''
+      baseDomain: ''
+      releaseImage: 'quay.io/openshift-release-dev/ocp-release:4.14.0-ec.4-multi'
+      additionalLabels: 'owner=acmqe-hypershift-auto'
+      region: ''
+      nodePoolReplicas: ''
+      instanceType: ''
+      namespace: ''
+  credentials:
+    apiKeys:
+      s3:
+        awsAccessKeyID: ''
+        awsSecretAccessKeyID: ''
+      aws:
+        awsAccessKeyID: ''
+        awsSecretAccessKeyID: '' 
+      awsCredsFile: ''      
+    secrets:
+      pullSecret: ''
