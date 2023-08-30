@@ -51,3 +51,19 @@ func IsMCEInstalled(dynamicClient dynamic.Interface) (bool, error) {
 	}
 	return true, nil
 }
+
+func GetMCENamespace(dynamicClient dynamic.Interface) (string, error) {
+	mce, err := GetDynamicResource(dynamicClient, MultiClusterEngineGVR)
+	if err != nil {
+		return "", err
+	}
+	return mce.Object["spec"].(map[string]interface{})["targetNamespace"].(string), nil
+}
+
+func GetACMNamespace(dynamicClient dynamic.Interface) (string, error) {
+	acm, err := GetDynamicResource(dynamicClient, MultiClusterHubGVR)
+	if err != nil {
+		return "", err
+	}
+	return acm.Object["spec"].(map[string]interface{})["targetNamespace"].(string), nil
+}

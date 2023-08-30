@@ -2,7 +2,6 @@ package hypershift_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,6 +31,7 @@ type Config struct {
 	Namespace        string
 	PullSecret       string
 	AWSCreds         string
+	ExternalDNS      string
 }
 
 const (
@@ -48,6 +48,7 @@ var (
 	addonClient             addonv1alpha1client.Interface
 	defaultManagedCluster   string
 	defaultInstallNamespace string
+	mceNamespace            string
 )
 
 func TestE2e(t *testing.T) {
@@ -88,6 +89,9 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 		ginkgo.Fail(fmt.Sprintf("The init options failed due to : %v", err))
 	}
 
+	mceNamespace, err = utils.GetMCENamespace(dynamicClient)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 	ginkgo.By("Check & Print the hypershift cli version running version on the system")
 	// use gomega gexec function to run the command hypershift version and print it out
 	command := exec.Command(utils.HypershiftCLIName, "version")
@@ -96,58 +100,40 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	gomega.Eventually(session).Should(gexec.Exit(0))
 
-	// TODO check if hypershift addon is enabled on the hub
-	// If ACM 2.8 or below, then enable it if not enabled
-
-	ginkgo.By("Check if the hypershift operator is healthy")
-	gomega.Eventually(func() error {
-		deployment, err :=
-			kubeClient.AppsV1().Deployments(utils.HypershiftOperatorNamespace).Get(context.TODO(), utils.HypershiftOperatorName, metav1.GetOptions{})
-
-		if err != nil {
-			ginkgo.GinkgoWriter.Println(err)
-			return err
-		}
-
-		if deployment.Status.AvailableReplicas != *deployment.Spec.Replicas {
-			return errors.New("ERROR: Hypershift operator is not healthy. Available replicas is not equal to the number of replicas")
-		} else {
-			fmt.Printf("Hypershift operator is healthy with %d Available replicas!\n", deployment.Status.AvailableReplicas)
-		}
-
-		return err
-	}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
-
-	ginkgo.By("Check the addon manager on the hub was installed")
-	gomega.Eventually(func() error {
-		_, err = kubeClient.AppsV1().Deployments("multicluster-engine").Get(context.TODO(), utils.HypershiftAddonMgrName, metav1.GetOptions{})
-		ginkgo.GinkgoWriter.Println(err)
-		return err
-	}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
-
-	ginkgo.By("Check the hypershift-addon on the hub is in Available status")
-	gomega.Eventually(func() error {
-		// check addon pods are running
-		fmt.Println("Checking if hypershift-addon is available on the hub...")
-		err = utils.ValidateClusterAddOnAvailable(dynamicClient, utils.LocalClusterName, utils.HypershiftAddonName)
-		ginkgo.GinkgoWriter.Println(err)
-		return err
-	}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
-
-	// TODO: check dns deployment is good, hypershift-addon is still good
-
 	// TODO: check if s3 secret exists and is on the hub
 	// AWS only
 	ginkgo.By("Checking if the oidc aws s3 secret exists on the hub (Required only for AWS)")
 	oidcProviderCredential, err := utils.GetS3Creds()
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	err = utils.CreateOIDCProviderSecret(context.TODO(), kubeClient, "acmqe-hypershift", oidcProviderCredential, "us-east-1", defaultManagedCluster)
 	if err != nil {
 		gomega.Expect(apierrors.IsAlreadyExists(err)).Should(gomega.BeTrue())
 		fmt.Printf("Secret hypershift-operator-oidc-provider-s3-credentials already exists in namespace %s\n", defaultManagedCluster)
 	} else {
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
-		ginkgo.GinkgoWriter.Println(err)
 	}
+
+	//TODO ensure external-dns secret exists, external-dns deployment should be initialized from its creation
+
+	ginkgo.By("Check if the hypershift operator is healthy by checking both operator and external-dns deployments")
+	gomega.Eventually(func() error {
+		return utils.IsHypershiftOperatorHealthy(kubeClient)
+	}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+
+	ginkgo.By("Check the addon manager on the hub was installed")
+	gomega.Eventually(func() error {
+		_, err = kubeClient.AppsV1().Deployments(mceNamespace).Get(context.TODO(), utils.HypershiftAddonMgrName, metav1.GetOptions{})
+		ginkgo.GinkgoWriter.Println(err)
+		return err
+	}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+
+	ginkgo.By("Check the hypershift-addon on the hub is in Available status")
+	gomega.Eventually(func() error {
+		fmt.Println("Checking if hypershift-addon is available on the hub...")
+		err = utils.ValidateClusterAddOnAvailable(dynamicClient, utils.LocalClusterName, utils.HypershiftAddonName)
+		ginkgo.GinkgoWriter.Println(err)
+		return err
+	}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 }, func() {})
 
 var _ = ginkgo.ReportAfterSuite("HyperShift E2E Report", func(report ginkgo.Report) {

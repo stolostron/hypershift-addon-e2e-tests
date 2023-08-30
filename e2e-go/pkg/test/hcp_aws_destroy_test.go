@@ -30,10 +30,14 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Destroy Tests", ginkgo.Label("
 		startTime := time.Now()
 
 		// get list of hosted clusters
-		// fail the test if no hosted clusters on the hub
 		// TODO ensure we get only AWS ones
 		hostedClusterList, err := utils.ListResource(dynamicClient, utils.HostedClustersGVR, "", "")
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		// if hostedClusterList is empty, skip the test
+		if len(hostedClusterList) == 0 {
+			ginkgo.Skip("No hosted clusters found on the hub")
+		}
 
 		// Run destroy command on all AWS hosted clusters without waiting to verify at first
 		for _, hostedCluster := range hostedClusterList {
@@ -41,6 +45,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Destroy Tests", ginkgo.Label("
 				"destroy", "cluster", TYPE_AWS,
 				"--name", hostedCluster.GetName(),
 				"--aws-creds", config.AWSCreds,
+				// "--secret-creds", "clc-aws-cred",
 				"--namespace", config.Namespace,
 				"--destroy-cloud-resources",
 			}

@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -216,6 +217,34 @@ func CreateOIDCProviderSecret(ctx context.Context, client kubernetes.Interface, 
 	return err
 }
 
+func GetResourceDecodedSecretValue(client kubernetes.Interface, namespace, secretName, secretKey string, base64Decode bool) (string, error) {
+	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	if err != nil {
+		fmt.Printf("Error fetching secret: %v\n", err)
+		return "", err
+	}
+	fmt.Printf("Secret %s found in namespace %s\n", secretName, namespace)
+
+	encodedValue, exists := secret.Data[secretKey]
+	if !exists {
+		fmt.Printf("Key %s not found in secret\n", secretKey)
+		return "", err
+	}
+	fmt.Printf("Key %s found in secret\n", secretKey)
+	fmt.Printf("Encoded value: %s\n", string(encodedValue))
+
+	if base64Decode {
+		decodedValue, err := base64.StdEncoding.DecodeString(string(encodedValue))
+		if err != nil {
+			fmt.Printf("Error decoding value: %v\n", err)
+			return "", err
+		}
+		return string(decodedValue), nil
+	}
+
+	return string(encodedValue), nil
+}
+
 func DeleteOIDCProviderSecret(ctx context.Context, client kubernetes.Interface, namespace string) error {
 	ginkgo.By(fmt.Sprintf("Deleting the hypershift OIDC provider secret for %s", namespace))
 	return client.CoreV1().Secrets(namespace).Delete(ctx, HypershiftS3OIDCSecretName, metav1.DeleteOptions{})
@@ -231,7 +260,8 @@ func GenerateClusterName(prefix string) (string, error) {
 	lowerCaseUUID := strings.ReplaceAll(uuidString, "-", "")
 
 	uniqueID := fmt.Sprintf("%s-%s", prefix, strings.ToLower(lowerCaseUUID))
-	return uniqueID, nil
+	// requires to be shorter, as adding an external dns name could cause it to be over the 63 character limit for creating endpoint
+	return uniqueID[:25], nil
 }
 
 func generateErrorMsg(tag, solution, reason, errmsg string) error {

@@ -59,6 +59,11 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 		awsCreds, err := utils.GetAWSCreds()
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		config.AWSCreds = awsCreds
+
+		// GetExternalDNS
+		externalDNS, err := utils.GetResourceDecodedSecretValue(kubeClient, utils.LocalClusterName, utils.ExternalDNSSecretName, "domain-filter", false)
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+		config.ExternalDNS = externalDNS
 	})
 
 	ginkgo.It("Creates an AWS Hosted Cluster", ginkgo.Label("create", TYPE_AWS), func() {
@@ -70,14 +75,15 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 			"create", "cluster", TYPE_AWS,
 			"--name", config.ClusterName,
 			"--aws-creds", config.AWSCreds,
-			"--region", config.Region,
 			"--base-domain", config.BaseDomain,
 			"--pull-secret", config.PullSecret,
+			// "--secret-creds", "clc-aws-cred",
+			"--region", config.Region,
 			"--node-pool-replicas", config.NodePoolReplicas,
 			"--namespace", config.Namespace,
 			"--instance-type", config.InstanceType,
 			"--release-image", config.ReleaseImage,
-			// --external-dns-domain=${HYPERSHIFT_EXTERNAL_DNS_DOMAIN} \
+			"--external-dns-domain", config.ExternalDNS,
 			"--generate-ssh",
 		}
 
@@ -105,6 +111,8 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 			fmt.Printf("Time taken for the cluster be imported and addons ready: %s\n", time.Since(startTime).String())
 		})
 
+		// TODO check if cluster has external-dns applied by checking HC conditions, api url, etc.
+
 		ginkgo.By(fmt.Sprintf("Checking if managed cluster %s has the correct labels", config.ClusterName), func() {
 			gomega.Eventually(func() bool {
 				managedClusterLabels, err := utils.GetResourceLabels(dynamicClient, utils.ManagedClustersGVR, "", config.ClusterName)
@@ -115,10 +123,23 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 					managedClusterLabels["cloud"] == "Amazon" &&
 					managedClusterLabels["cluster.open-cluster-management.io/clusterset"] == "default" &&
 					managedClusterLabels["vendor"] == "OpenShift"
+				// TODO check ocp version e.g. openshiftVersion: 4.14.0-ec.4
+			}, eventuallyTimeoutShort).Should(gomega.BeTrue())
+		})
+
+		ginkgo.By(fmt.Sprintf("Checking if managed cluster %s has the correct annotations", config.ClusterName), func() {
+			gomega.Eventually(func() bool {
+				managedClusterAnnotations, err := utils.GetResourceAnnotations(dynamicClient, utils.ManagedClustersGVR, "", config.ClusterName)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+				fmt.Printf("managedClusterAnnotations: %v\n", managedClusterAnnotations)
+				return managedClusterAnnotations["import.open-cluster-management.io/klusterlet-deploy-mode"] == "Hosted" &&
+					managedClusterAnnotations["import.open-cluster-management.io/hosting-cluster-name"] == utils.LocalClusterName
 				// UNCOMMENT BELOW ONCE https://issues.redhat.com/browse/ACM-6547 IS DONE
 				//&& managedClusterLabels["open-cluster-management/created-via"] == "hypershift"
 			}, eventuallyTimeoutShort).Should(gomega.BeTrue())
 		})
+
 		fmt.Printf("Test Duration: %s\n", time.Since(startTime).String())
 		fmt.Printf("========================= End Test create hosted cluster %s ===============================", config.ClusterName)
 	})
