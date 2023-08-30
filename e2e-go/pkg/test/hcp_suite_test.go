@@ -50,6 +50,8 @@ var (
 	defaultManagedCluster   string
 	defaultInstallNamespace string
 	mceNamespace            string
+	config                  Config
+	err                     error
 )
 
 func TestE2e(t *testing.T) {
@@ -135,6 +137,52 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 		ginkgo.GinkgoWriter.Println(err)
 		return err
 	}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+
+	// initialize config object to be used for tests
+	// most likely these won't change, but if they do need to they can be changed in the test
+	// we won't configure the default name
+
+	// GetInstanceType with error handling
+	config.InstanceType, err = utils.GetInstanceType(TYPE_AWS)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetBaseDomain with error handling
+	config.BaseDomain, err = utils.GetBaseDomain(TYPE_AWS)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetRegion with error handling
+	config.Region, err = utils.GetRegion(TYPE_AWS)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetNodePoolReplicas with error handling
+	config.NodePoolReplicas, err = utils.GetNodePoolReplicas(TYPE_AWS)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetReleaseImage with error handling
+	// TODO allow empty and default to latest release image
+	config.ReleaseImage, err = utils.GetReleaseImage(TYPE_AWS)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetNamespace with error handling
+	// TODO allow empty or default clusters ns
+	config.Namespace, err = utils.GetNamespace(TYPE_AWS)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetPullSecret with error handling
+	config.PullSecret, err = utils.GetPullSecret()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetAWSCreds with error handling
+	config.AWSCreds, err = utils.GetAWSCreds()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetExternalDNS
+	config.ExternalDNS, err = utils.GetResourceDecodedSecretValue(kubeClient, utils.LocalClusterName, utils.ExternalDNSSecretName, "domain-filter", false)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// GetSecretCreds
+	config.SecretCredsName, err = utils.GetAWSSecretCreds()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }, func() {})
 
 var _ = ginkgo.ReportAfterSuite("HyperShift E2E Report", func(report ginkgo.Report) {

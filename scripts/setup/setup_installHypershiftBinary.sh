@@ -6,7 +6,7 @@
 # export HC_CLI_ARCH=   # valid options: amd64 (DEFAULT) / arm64/ ppc64 / ppc64le / s390x
 #########################################
 HCP_BINARY_NAME="hypershift"
-MCE_NS=$(oc get $(oc get multiclusterengines -oname) -ojsonpath="{.spec.targetNamespace}")
+MCE_NS=$(oc get "$(oc get multiclusterengines -oname)" -ojsonpath="{.spec.targetNamespace}")
 echo "$(date) MCE_NS = ${MCE_NS}"
 echo "$(date) HC_CLI_OS = ${HC_CLI_OS:-linux}" # valid options: linux / darwin / windows
 echo "$(date) HC_CLI_ARCH = ${HC_CLI_ARCH:-amd64}" # valid options: amd64 / arm64/ ppc64 / ppc64le / s390x

@@ -13,59 +13,10 @@ import (
 )
 
 var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create", TYPE_AWS), func() {
-	var config Config
+
 	ginkgo.BeforeEach(func() {
-		// GetClusterName with error handling
-		clusterName, err := utils.GenerateClusterName("acmqe-hc")
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.ClusterName = clusterName
-
-		// GetInstanceType with error handling
-		instanceType, err := utils.GetInstanceType(TYPE_AWS)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.InstanceType = instanceType
-
-		// GetBaseDomain with error handling
-		baseDomain, err := utils.GetBaseDomain(TYPE_AWS)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.BaseDomain = baseDomain
-
-		// GetRegion with error handling
-		region, err := utils.GetRegion(TYPE_AWS)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.Region = region
-
-		// GetNodePoolReplicas with error handling
-		nodePoolReplicas, err := utils.GetNodePoolReplicas(TYPE_AWS)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.NodePoolReplicas = nodePoolReplicas
-
-		// GetReleaseImage with error handling
-		releaseImage, err := utils.GetReleaseImage(TYPE_AWS)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.ReleaseImage = releaseImage // TODO allow empty and default to latest release image
-
-		// GetNamespace with error handling
-		namespace, err := utils.GetNamespace(TYPE_AWS)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.Namespace = namespace // TODO allow empty or default clusters ns
-
-		// GetPullSecret with error handling
-		pullSecret, err := utils.GetPullSecret()
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.PullSecret = pullSecret
-
-		// GetAWSCreds with error handling
-		awsCreds, err := utils.GetAWSCreds()
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.AWSCreds = awsCreds
-
-		// GetExternalDNS
-		externalDNS, err := utils.GetResourceDecodedSecretValue(kubeClient, utils.LocalClusterName, utils.ExternalDNSSecretName, "domain-filter", false)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.ExternalDNS = externalDNS
-
-		config.SecretCredsName, err = utils.GetAWSSecretCreds()
+		// Before each test, generate a unique cluster name to create the hosted cluster with
+		config.ClusterName, err = utils.GenerateClusterName("acmqe-hc")
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 
@@ -77,9 +28,6 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 		commandArgs := []string{
 			"create", "cluster", TYPE_AWS,
 			"--name", config.ClusterName,
-			// "--aws-creds", config.AWSCreds,
-			// "--base-domain", config.BaseDomain,
-			// "--pull-secret", config.PullSecret,
 			"--secret-creds", config.SecretCredsName,
 			"--region", config.Region,
 			"--node-pool-replicas", config.NodePoolReplicas,
