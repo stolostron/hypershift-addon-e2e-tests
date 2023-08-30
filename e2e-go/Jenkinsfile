@@ -36,6 +36,9 @@ pipeline {
         PULL_SECRET_FILE = credentials ('dhu-ocp-pull-secret')
     }
     stages {
+        // hubs
+        // aws, kubevirt [4.14], agent
+        // 
         // stage('Clean up workspace') {
         //     steps {
         //         script {
@@ -70,7 +73,7 @@ pipeline {
                         oc create configmap clc-hcp-build-number -n default --from-literal=BUILD_NUM=$buildNumberInsOcp"
 
                         sh "chmod -R +x ${SCRIPT_DIR}"
-                        
+
                         rm -rf ./hub_kubeconfig ./results
                         mkdir -p {hub_kubeconfig,results}
                         KUBECONFIG=\$(pwd)/hub_kubeconfig/kubeconfig oc login --insecure-skip-tls-verify -u \$OCP_HUB_CLUSTER_USER -p \$OCP_HUB_CLUSTER_PASSWORD \$OCP_HUB_CLUSTER_API_URL

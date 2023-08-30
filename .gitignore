@@ -10,3 +10,5 @@ options.yaml
 # Ignore all files named .DS_Store or ending with .log
 .DS_Store
 **.log
+
+e2e-go/local/

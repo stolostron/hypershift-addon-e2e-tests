@@ -64,6 +64,9 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 		externalDNS, err := utils.GetResourceDecodedSecretValue(kubeClient, utils.LocalClusterName, utils.ExternalDNSSecretName, "domain-filter", false)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		config.ExternalDNS = externalDNS
+
+		config.SecretCredsName, err = utils.GetAWSSecretCreds()
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 
 	ginkgo.It("Creates an AWS Hosted Cluster", ginkgo.Label("create", TYPE_AWS), func() {
@@ -74,10 +77,10 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 		commandArgs := []string{
 			"create", "cluster", TYPE_AWS,
 			"--name", config.ClusterName,
-			"--aws-creds", config.AWSCreds,
-			"--base-domain", config.BaseDomain,
-			"--pull-secret", config.PullSecret,
-			// "--secret-creds", "clc-aws-cred",
+			// "--aws-creds", config.AWSCreds,
+			// "--base-domain", config.BaseDomain,
+			// "--pull-secret", config.PullSecret,
+			"--secret-creds", config.SecretCredsName,
 			"--region", config.Region,
 			"--node-pool-replicas", config.NodePoolReplicas,
 			"--namespace", config.Namespace,

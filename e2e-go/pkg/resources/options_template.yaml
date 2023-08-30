@@ -25,6 +25,7 @@ options:
       aws:
         awsAccessKeyID: ''
         awsSecretAccessKeyID: '' 
-      awsCredsFile: ''      
+      awsCredsFile: ''
+      awsCredName: ''
     secrets:
       pullSecret: ''

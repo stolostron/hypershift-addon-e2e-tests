@@ -24,6 +24,9 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Destroy Tests", ginkgo.Label("
 		awsCreds, err := utils.GetAWSCreds()
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		config.AWSCreds = awsCreds
+
+		config.SecretCredsName, err = utils.GetAWSSecretCreds()
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 
 	ginkgo.It("Destroy all AWS hosted clusters on the hub", ginkgo.Label("destroy", "all"), func() {
@@ -44,8 +47,8 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Destroy Tests", ginkgo.Label("
 			commandArgs := []string{
 				"destroy", "cluster", TYPE_AWS,
 				"--name", hostedCluster.GetName(),
-				"--aws-creds", config.AWSCreds,
-				// "--secret-creds", "clc-aws-cred",
+				// "--aws-creds", config.AWSCreds,
+				"--secret-creds", config.SecretCredsName,
 				"--namespace", config.Namespace,
 				"--destroy-cloud-resources",
 			}

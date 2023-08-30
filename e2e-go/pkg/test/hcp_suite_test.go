@@ -32,6 +32,7 @@ type Config struct {
 	PullSecret       string
 	AWSCreds         string
 	ExternalDNS      string
+	SecretCredsName  string
 }
 
 const (

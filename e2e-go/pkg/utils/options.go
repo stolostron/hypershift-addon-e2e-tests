@@ -102,6 +102,7 @@ type APIKeys struct {
 	S3           AWSAPIKey `json:"s3,omitempty"`
 	AWS          AWSAPIKey `json:"aws,omitempty"`
 	AWSCredsFile string    `json:"awsCredsFile,omitempty"`
+	AWSCredsName string    `json:"awsCredName,omitempty"`
 }
 
 // AWSAPIKey ...
@@ -303,4 +304,12 @@ func GetPullSecret() (string, error) {
 		return os.Getenv("PULL_SECRET_FILE"), nil
 	}
 	return TestOptions.Options.CloudConnection.Secrets.PullSecret, nil
+}
+
+// GetPullSecret returns the cluster image used to provision the cluster
+func GetAWSSecretCreds() (string, error) {
+	if os.Getenv("SECRET_AWS_CRED_NAME") != "" {
+		return os.Getenv("SECRET_AWS_CRED_NAME"), nil
+	}
+	return TestOptions.Options.CloudConnection.APIKeys.AWSCredsName, nil
 }
