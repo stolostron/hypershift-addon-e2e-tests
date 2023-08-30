@@ -22,8 +22,6 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 
 	ginkgo.It("Creates an AWS Hosted Cluster", ginkgo.Label("create", TYPE_AWS), func() {
 		startTime := time.Now()
-		// TODO ensure auto-import is enabled
-		// TODO check disable auto-import, MC not auto created even after HCP is ready
 
 		commandArgs := []string{
 			"create", "cluster", TYPE_AWS,
