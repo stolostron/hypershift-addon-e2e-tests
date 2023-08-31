@@ -5,7 +5,7 @@
 # export HC_CLI_OS=     # valid options: linux (DEFAULT) / darwin / windows
 # export HC_CLI_ARCH=   # valid options: amd64 (DEFAULT) / arm64/ ppc64 / ppc64le / s390x
 #########################################
-HCP_BINARY_NAME="hypershift"
+HCP_BINARY_NAME="hcp"
 MCE_NS=$(oc get "$(oc get multiclusterengines -oname)" -ojsonpath="{.spec.targetNamespace}")
 echo "$(date) MCE_NS = ${MCE_NS}"
 echo "$(date) HC_CLI_OS = ${HC_CLI_OS:-linux}" # valid options: linux / darwin / windows
@@ -44,9 +44,9 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "$(date) ${HCP_BINARY_NAME} CLI version installed:"
-if $(${HCP_BINARY_NAME} version | grep -q 'openshift/hypershift'); then
+if $(${HCP_BINARY_NAME} -v | grep -q 'openshift/hypershift'); then
   date
-  ${HCP_BINARY_NAME} version
+  ${HCP_BINARY_NAME} -v
   echo "$(date) You are ready to provision a hosted plane cluster!"
 else
   echo "$(date) ERROR: ${HCP_BINARY_NAME} CLI failed!"

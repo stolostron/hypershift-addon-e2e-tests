@@ -2,6 +2,7 @@
 # This script is run on the hub cluster to help create the following secrets for hypershift:
 # 1. hypershift-operator-oidc-provider-s3-credentials
 # 2. hypershift-operator-external-dns-credentials
+# 3. MCE/ACM AWS Secret
 
 #########################################
 #   POPULATE THESE WITH ENV VARS        #
@@ -167,7 +168,12 @@ fi
 #######################################################
 
 echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
-oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'=${S3_BUCKET_NAME} --timeout=${TIMEOUT}
+oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
+echo "$(date) S3 Bucket secret created and hosting cluster configured!"
+echo
+
+echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the AWS secret creds..."
+oc wait secret/"${SECRET_AWS_CRED_NAME}" -n "${HOSTING_CLUSTER_NAME}" --for=jsonpath='{.metadata.name}'="${SECRET_AWS_CRED_NAME}" --timeout=${TIMEOUT}
 echo "$(date) S3 Bucket secret created and hosting cluster configured!"
 echo
 
