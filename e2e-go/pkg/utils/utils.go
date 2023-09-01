@@ -113,7 +113,13 @@ func HasResource(dynamicClient dynamic.Interface, gvr schema.GroupVersionResourc
 // GetResource returns the resource instance for the given GroupVersionResource, namespace, and name
 func GetResource(dynamicClient dynamic.Interface, gvr schema.GroupVersionResource, namespace, name string) (
 	*unstructured.Unstructured, error) {
-	obj, err := dynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	var obj *unstructured.Unstructured
+	var err error
+	if namespace == "" {
+		obj, err = dynamicClient.Resource(gvr).Get(context.TODO(), name, metav1.GetOptions{})
+	} else {
+		obj, err = dynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -22,6 +22,9 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 
 	ginkgo.It("Creates an AWS Hosted Cluster", ginkgo.Label("create", TYPE_AWS), func() {
 		startTime := time.Now()
+		// TODO ensure auto-import is enabled
+		// oc get addondeploymentconfig hypershift-addon-deploy-config -n mce -ojson | jq '.spec.ports | map(.name == "autoImportDisabled") | index(true)'
+		// TODO check disable auto-import, MC not auto created even after HCP is ready
 
 		commandArgs := []string{
 			"create", "cluster", TYPE_AWS,
@@ -32,6 +35,7 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 			"--namespace", config.Namespace,
 			"--instance-type", config.InstanceType,
 			"--release-image", config.ReleaseImage,
+			// "--pull-secret", config.PullSecret,
 			"--external-dns-domain", config.ExternalDNS,
 			"--generate-ssh",
 		}
@@ -39,6 +43,7 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 		cmd := exec.Command(utils.HypershiftCLIName, commandArgs...)
 		session, err := gexec.Start(cmd, ginkgo.GinkgoWriter, ginkgo.GinkgoWriter)
 		defer gexec.KillAndWait()
+		utils.PrintOutput(session) // prints command, args and output
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		gomega.Eventually(session, eventuallyTimeout, eventuallyInterval).Should(gexec.Exit(0))
 		utils.PrintOutput(session) // prints command, args and output
@@ -83,9 +88,8 @@ var _ = ginkgo.Describe("Create AWS hosted cluster", ginkgo.Label("e2e", "create
 
 				fmt.Printf("managedClusterAnnotations: %v\n", managedClusterAnnotations)
 				return managedClusterAnnotations["import.open-cluster-management.io/klusterlet-deploy-mode"] == "Hosted" &&
-					managedClusterAnnotations["import.open-cluster-management.io/hosting-cluster-name"] == utils.LocalClusterName
-				// UNCOMMENT BELOW ONCE https://issues.redhat.com/browse/ACM-6547 IS DONE
-				//&& managedClusterLabels["open-cluster-management/created-via"] == "hypershift"
+					managedClusterAnnotations["import.open-cluster-management.io/hosting-cluster-name"] == utils.LocalClusterName &&
+					managedClusterAnnotations["open-cluster-management/created-via"] == "hypershift"
 			}, eventuallyTimeoutShort).Should(gomega.BeTrue())
 		})
 

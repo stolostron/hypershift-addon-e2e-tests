@@ -44,14 +44,15 @@ const (
 )
 
 var (
-	dynamicClient           dynamic.Interface
-	kubeClient              kubernetes.Interface
-	addonClient             addonv1alpha1client.Interface
-	defaultManagedCluster   string
-	defaultInstallNamespace string
-	mceNamespace            string
-	config                  Config
-	err                     error
+	dynamicClient             dynamic.Interface
+	kubeClient                kubernetes.Interface
+	addonClient               addonv1alpha1client.Interface
+	defaultManagedCluster     string
+	defaultInstallNamespace   string
+	mceNamespace              string
+	config                    Config
+	err                       error
+	hcpCliConsoleDownloadSpec map[string]interface{}
 )
 
 func TestE2e(t *testing.T) {
@@ -95,9 +96,9 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	mceNamespace, err = utils.GetMCENamespace(dynamicClient)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	ginkgo.By("Check & Print the hypershift cli version running version on the system")
+	ginkgo.By("Check & Print the hcp cli version running version on the system")
 	// use gomega gexec function to run the command hypershift version and print it out
-	command := exec.Command(utils.HypershiftCLIName, "version")
+	command := exec.Command(utils.HypershiftCLIName, "--version")
 	session, err := gexec.Start(command, ginkgo.GinkgoWriter, ginkgo.GinkgoWriter)
 	defer gexec.KillAndWait()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -137,6 +138,13 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 		ginkgo.GinkgoWriter.Println(err)
 		return err
 	}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+
+	// TODO check if console is enabled first
+	ginkgo.By(fmt.Sprintf("Check the ConsoleCLIDownload %s is exists on the hub", utils.HCPCliDownloadName))
+	hcpCliDownload, err := utils.GetHCPConsoleCliDownload(dynamicClient)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	hcpCliConsoleDownloadSpec = hcpCliDownload.Object["spec"].(map[string]interface{})
+	gomega.Expect(hcpCliConsoleDownloadSpec).ShouldNot(gomega.BeNil())
 
 	// initialize config object to be used for tests
 	// most likely these won't change, but if they do need to they can be changed in the test
