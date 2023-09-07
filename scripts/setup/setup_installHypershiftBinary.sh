@@ -7,12 +7,15 @@
 #########################################
 HCP_BINARY_NAME="hcp"
 MCE_NS=$(oc get "$(oc get multiclusterengines -oname)" -ojsonpath="{.spec.targetNamespace}")
+HC_CLI_OS=${HC_CLI_OS:-linux}       # valid options: linux / darwin / windows
+HC_CLI_ARCH=${HC_CLI_ARCH:-amd64}   # valid options: amd64 / arm64/ ppc64 / ppc64le / s390x
+
 echo "$(date) MCE_NS = ${MCE_NS}"
-echo "$(date) HC_CLI_OS = ${HC_CLI_OS:-linux}" # valid options: linux / darwin / windows
-echo "$(date) HC_CLI_ARCH = ${HC_CLI_ARCH:-amd64}" # valid options: amd64 / arm64/ ppc64 / ppc64le / s390x
+echo "$(date) HC_CLI_OS = ${HC_CLI_OS}" 
+echo "$(date) HC_CLI_ARCH = ${HC_CLI_ARCH}" 
 
 echo "$(date) Curl, extract, and move to CLI to PATH"
-curl -ko ${HCP_BINARY_NAME}.tar.gz "https://$(oc get routes ${HCP_BINARY_NAME}-cli-download -n ${MCE_NS} -ojsonpath="{.spec.host}")/${HC_CLI_OS}/${HC_CLI_ARCH}/${HCP_BINARY_NAME}.tar.gz"
+curl -ko ${HCP_BINARY_NAME}.tar.gz https://$(oc get routes ${HCP_BINARY_NAME}-cli-download -n ${MCE_NS} -o jsonpath="{.spec.host}")/${HC_CLI_OS}/${HC_CLI_ARCH}/${HCP_BINARY_NAME}.tar.gz
 if [ $? -ne 0 ]; then
     echo "$(date) failed to curl ${HCP_BINARY_NAME}.tar.gz"
     exit 1
