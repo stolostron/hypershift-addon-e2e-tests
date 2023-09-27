@@ -306,7 +306,7 @@ func GetPullSecret() (string, error) {
 	return TestOptions.Options.CloudConnection.Secrets.PullSecret, nil
 }
 
-// GetPullSecret returns the cluster image used to provision the cluster
+// GetAWSSecretCreds returns the cluster image used to provision the cluster
 func GetAWSSecretCreds() (string, error) {
 	if os.Getenv("SECRET_AWS_CRED_NAME") != "" {
 		return os.Getenv("SECRET_AWS_CRED_NAME"), nil

@@ -7,6 +7,7 @@ import (
 	"github.com/onsi/gomega"
 	libgounstructuredv1 "github.com/stolostron/library-go/pkg/apis/meta/v1/unstructured"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 )
@@ -15,6 +16,28 @@ var HostedClustersGVR = schema.GroupVersionResource{
 	Group:    "hypershift.openshift.io",
 	Version:  "v1beta1",
 	Resource: "hostedclusters",
+}
+
+// GetHostedClustersList gets the list of HostedClusters of some type with some label selector
+// If type and label selector are not provided, it returns all HostedClusters
+func GetHostedClustersList(hubClientDynamic dynamic.Interface, hostedClusterType string, labelSelector string) ([]*unstructured.Unstructured, error) {
+	hostedClusterList, err := ListResource(hubClientDynamic, HostedClustersGVR, "", labelSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	finalHCList := []*unstructured.Unstructured{}
+	if hostedClusterType != "" {
+		for _, hostedCluster := range hostedClusterList {
+			// filter by spec.platform.type
+			if hostedCluster.Object["spec"].(map[string]interface{})["platform"].(map[string]interface{})["type"] != hostedClusterType {
+				finalHCList = append(finalHCList, hostedCluster)
+			}
+		}
+		return finalHCList, nil
+	}
+
+	return hostedClusterList, nil
 }
 
 func CheckHCPAvailable(hubClientDynamic dynamic.Interface, clusterName string, namespace string) error {

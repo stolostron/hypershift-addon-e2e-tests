@@ -12,31 +12,52 @@ import (
 	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
 )
 
-var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Create Tests:", ginkgo.Label(TYPE_AWS), func() {
+var _ = ginkgo.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", ginkgo.Label(TYPE_KUBEVIRT), func() {
 
 	ginkgo.BeforeEach(func() {
+		// TODO set prefix for cluster name
+		// TODO allow flag to set static cluster name
 		// Before each test, generate a unique cluster name to create the hosted cluster with
 		config.ClusterName, err = utils.GenerateClusterName("acmqe-hc")
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 
-	ginkgo.It("Creates a AWS Hosted Cluster using --secret-creds", ginkgo.Label("create"), func() {
+	ginkgo.It("Creates a Kubevirt Hosted Cluster", ginkgo.Label("create"), func() {
 		startTime := time.Now()
-		// TODO ensure auto-import is enabled
+		// TODO ensure auto-import is enabled, if not, check managed cluster is not imported or set enabled
 		// oc get addondeploymentconfig hypershift-addon-deploy-config -n mce -ojson | jq '.spec.ports | map(.name == "autoImportDisabled") | index(true)'
 		// TODO check disable auto-import, MC not auto created even after HCP is ready
 
+		// TODO get pull secret from hub? default, if none provided
 		commandArgs := []string{
-			"create", "cluster", TYPE_AWS,
+			"create", "cluster", TYPE_KUBEVIRT,
 			"--name", config.ClusterName,
-			"--secret-creds", config.SecretCredsName,
-			"--region", config.Region,
-			"--node-pool-replicas", config.NodePoolReplicas,
-			"--namespace", config.Namespace,
-			"--instance-type", config.InstanceType,
-			"--release-image", config.ReleaseImage,
-			"--generate-ssh",
+			"--pull-secret", config.PullSecret,
 		}
+
+		// TODO expose memory option
+		commandArgs = append(commandArgs, "--memory", "6Gi")
+
+		// TODO expose cores option
+		commandArgs = append(commandArgs, "--cores", "2")
+
+		commandArgs = append(commandArgs, "--node-pool-replicas", config.NodePoolReplicas)
+
+		// TODO default to clusters if not provided
+		commandArgs = append(commandArgs, "--namespace", config.Namespace)
+
+		// default not provide release image if empty
+		commandArgs = append(commandArgs, "--release-image", config.ReleaseImage)
+
+		// TODO check if fips enabled requested
+		// TODO label cluster with fips for easy searching
+		commandArgs = append(commandArgs, "--fips")
+
+		// TODO expose ssh keys
+		commandArgs = append(commandArgs, "--generate-ssh")
+
+		// TODO don't provide by default or set default if not set
+		//commandArgs = append(commandArgs, "--control-plane-availability-policy", "SingleReplica")
 
 		cmd := exec.Command(utils.HypershiftCLIName, commandArgs...)
 		session, err := gexec.Start(cmd, ginkgo.GinkgoWriter, ginkgo.GinkgoWriter)
@@ -63,8 +84,6 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Create Tests:", ginkgo.Lab
 			fmt.Printf("Time taken for the cluster be imported and addons ready: %s\n", time.Since(startTime).String())
 		})
 
-		// TODO check if cluster has external-dns applied by checking HC conditions, api url, etc.
-
 		ginkgo.By(fmt.Sprintf("Checking if managed cluster %s has the correct labels", config.ClusterName), func() {
 			gomega.Eventually(func() bool {
 				managedClusterLabels, err := utils.GetResourceLabels(dynamicClient, utils.ManagedClustersGVR, "", config.ClusterName)
@@ -72,7 +91,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Create Tests:", ginkgo.Lab
 
 				fmt.Printf("managedClusterLabels: %v\n", managedClusterLabels)
 				return managedClusterLabels["name"] == config.ClusterName &&
-					managedClusterLabels["cloud"] == "Amazon" &&
+					managedClusterLabels["cloud"] == "Other" &&
 					managedClusterLabels["cluster.open-cluster-management.io/clusterset"] == "default" &&
 					managedClusterLabels["vendor"] == "OpenShift"
 				// TODO check ocp version e.g. openshiftVersion: 4.14.0-ec.4

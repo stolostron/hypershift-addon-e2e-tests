@@ -14,28 +14,34 @@
 #export S3_BUCKET_NAME=
 #export S3_REGION=
 
-# HOSTING_CLUSTER_NAME is the target managed cluster where the hosted cluster is created. 
-# The hypershift-addon must be enabled in this managed cluster.
-# defaults to local-cluster if not specified
-# export HOSTING_CLUSTER_NAME=local-cluster
-
 # The AWS creds
 #export AWS_ACCESS_KEY_ID=
 #export AWS_SECRET_ACCESS_KEY=
 
+# HOSTING_CLUSTER_NAME is the target managed cluster where the hosted cluster is created. 
+# The hypershift-addon must be enabled in this managed cluster.
+# DEFAULTS to local-cluster if not specified
+# export HOSTING_CLUSTER_NAME=local-cluster #optional
+
 # The name of the secret that will be created on the hosting cluster
 # if the secret doesn't yet exist, then it will be created and will require base domain and ssh keys variables set
-#export SECRET_AWS_CRED_NAME=
+#export SECRET_AWS_CRED_NAME= #optional
 #export BASE_DOMAIN=
 #export SSH_PUBLIC_KEY=
 #export SSH_PRIVATE_KEY=
+
+##TODO
+# PULLSECRET expose
+# default aws cred name, optional
 #########################################
 
 TIMEOUT=300s # default: 5 minute timeout for oc wait commands
 
 cleanup() {
+  echo "cleaning up tmp files"
   rm -rf ./.aws/credentials
 }
+
 # Delete all aws credentials in the current directory on any exit
 trap cleanup EXIT
 
@@ -92,6 +98,8 @@ PULL_SECRET=$(oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.
 echo "$(date) creating secret hypershift-operator-oidc-provider-s3-credentials..."
 oc delete secret hypershift-operator-oidc-provider-s3-credentials --ignore-not-found -n ${HOSTING_CLUSTER_NAME}
 oc create secret generic hypershift-operator-oidc-provider-s3-credentials --from-file=credentials=${AWS_CREDS_FILE} --from-literal=bucket=${S3_BUCKET_NAME} --from-literal=region=${S3_REGION} -n ${HOSTING_CLUSTER_NAME}
+oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER_NAME} cluster.open-cluster-management.io/credentials= --overwrite
+oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER_NAME} cluster.open-cluster-management.io/type=awss3 --overwrite
 oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER_NAME} cluster.open-cluster-management.io/backup=true --overwrite
 if [ $? -ne 0 ]; then
     echo "$(date) failed to create secret hypershift-operator-oidc-provider-s3-credentials"
@@ -119,8 +127,8 @@ else
     echo "Secret $SECRET_AWS_CRED_NAME does not exist yet in $HOSTING_CLUSTER_NAME namespace"
     echo "Creating new secret $SECRET_AWS_CRED_NAME in $HOSTING_CLUSTER_NAME namespace..."
 
-    if [ -z ${BASE_DOMAIN+x} ]; then
-      echo "ERROR: BASE_DOMAIN is not defined"
+    if [ -z ${HCP_BASE_DOMAIN_NAME+x} ]; then
+      echo "ERROR: HCP_BASE_DOMAIN_NAME is not defined"
       exit 1
     fi
     
@@ -147,7 +155,7 @@ metadata:
 stringData:
   aws_access_key_id: $AWS_ACCESS_KEY_ID
   aws_secret_access_key: $AWS_SECRET_ACCESS_KEY
-  baseDomain: $BASE_DOMAIN
+  baseDomain: $HCP_BASE_DOMAIN_NAME
   pullSecret: >
     $PULL_SECRET
   ssh-privatekey: |
@@ -165,6 +173,8 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+#######################################################
+## Create secrets
 #######################################################
 
 echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
