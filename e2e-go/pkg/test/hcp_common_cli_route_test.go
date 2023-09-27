@@ -27,8 +27,12 @@ const (
 	MAC_ARM64_DESC         = "Download hcp CLI for Mac for ARM 64"
 	WINDOWS_AMD64          = "windows/amd64"
 	WINDOWS_AMD64_DESC     = "Download hcp CLI for Windows for x86_64"
-	WINDOWS_ARM64          = "windows/arm64"
-	WINDOWS_ARM64_DESC     = "Download hcp CLI for Windows for ARM 64"
+	IBM_POWER_PPC64        = "linux/ppc64"
+	IBM_POWER_PPC64_DESC   = "Download hcp CLI for Linux for IBM Power"
+	IBM_POWER_PPC64LE      = "linux/ppc64le"
+	IBM_POWER_PPC64LE_DESC = "Download hcp CLI for Linux for IBM Power, little endian"
+	IBM_Z_S390X            = "linux/s390x"
+	IBM_Z_S390X_DESC       = "Download hcp CLI for Linux for IBM Z"
 )
 
 func checkConsoleCLIDownloadLink(links []interface{}, osArch string) error {
@@ -38,7 +42,7 @@ func checkConsoleCLIDownloadLink(links []interface{}, osArch string) error {
 				fmt.Printf("linkMap[href]: %+v\n", linkMap["href"])
 				fmt.Printf("linkMap[text]: %+v\n", linkMap["text"])
 
-				// now use the href to test the url
+				// now use the href to test the url works and gives us back HTTP 200
 				tr := &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 				}
@@ -58,10 +62,8 @@ func checkConsoleCLIDownloadLink(links []interface{}, osArch string) error {
 	return nil
 }
 
-var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("e2e", "create", TYPE_AWS), func() {
-	// TODO: krew-manager works as expected?
-
-	// TODO
+var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("e2e", "CLI-Links", TYPE_AWS), func() {
+	// TODO not need if we can get the route from the console cli download CR
 	// ginkgo.Context("irrespective of whether the console is enabled or not", func() {
 	// 	// TODO: route is good for each OS/arch
 	// 	ginkgo.BeforeEach(func() {
@@ -75,13 +77,14 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("e
 	ginkgo.Context("the console is enabled", func() {
 
 		ginkgo.BeforeEach(func() {
+			// TODO embed check in each test, check service only if console not available
 			if hcpCliConsoleDownloadSpec == nil {
 				ginkgo.Skip("hcpCliConsoleDownloadSpec is not set, perhaps console is not enabled?")
 			}
 		})
 
 		// TODO
-		ginkgo.It("should no longer have the oid hypershift console link refernce", ginkgo.Label("e2e", "label", "console"), func() {
+		ginkgo.It("should no longer have the old hypershift console link refernce", ginkgo.Label("e2e", "label", "console"), func() {
 			ginkgo.Skip("WIP")
 			_, err = utils.GetConsoleCliDownload(dynamicClient, "hypershift-cli-download")
 			// expect err to be errors.IsNotFound
@@ -167,6 +170,51 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("e
 				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
 					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
 					"text": gomega.ContainSubstring(WINDOWS_AMD64_DESC),
+				})))
+
+				ginkgo.By(fmt.Sprintf("Verifying HTTP GET on file href for os/arch %s works as expected \n", arch))
+				if links, ok := hcpCliConsoleDownloadSpec["links"].([]interface{}); ok {
+					checkConsoleCLIDownloadLink(links, arch)
+				}
+			})
+
+			ginkgo.It("should have the correct link for IBM Power (PPC64)", ginkgo.Label("e2e", "consoleLinks"), func() {
+
+				arch := IBM_POWER_PPC64
+				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
+				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"text": gomega.ContainSubstring(IBM_POWER_PPC64_DESC),
+				})))
+
+				ginkgo.By(fmt.Sprintf("Verifying HTTP GET on file href for os/arch %s works as expected \n", arch))
+				if links, ok := hcpCliConsoleDownloadSpec["links"].([]interface{}); ok {
+					checkConsoleCLIDownloadLink(links, arch)
+				}
+			})
+
+			ginkgo.It("should have the correct link for IBM Power, little endian (PPC64LE)", ginkgo.Label("e2e", "consoleLinks"), func() {
+
+				arch := IBM_POWER_PPC64LE
+				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
+				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"text": gomega.ContainSubstring(IBM_POWER_PPC64LE_DESC),
+				})))
+
+				ginkgo.By(fmt.Sprintf("Verifying HTTP GET on file href for os/arch %s works as expected \n", arch))
+				if links, ok := hcpCliConsoleDownloadSpec["links"].([]interface{}); ok {
+					checkConsoleCLIDownloadLink(links, arch)
+				}
+			})
+
+			ginkgo.It("should have the correct link for IBM Z (S390X)", ginkgo.Label("e2e", "consoleLinks"), func() {
+
+				arch := IBM_Z_S390X
+				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
+				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"text": gomega.ContainSubstring(IBM_Z_S390X_DESC),
 				})))
 
 				ginkgo.By(fmt.Sprintf("Verifying HTTP GET on file href for os/arch %s works as expected \n", arch))

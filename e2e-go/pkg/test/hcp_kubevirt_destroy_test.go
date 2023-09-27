@@ -11,28 +11,13 @@ import (
 	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
 )
 
-var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.Label(TYPE_AWS), func() {
-	var config Config
+var _ = ginkgo.Describe("Hosted Control Plane CLI KubeVirt Destroy Tests:", ginkgo.Label("destroy", TYPE_KUBEVIRT), func() {
 
-	ginkgo.BeforeEach(func() {
-		// GetNamespace with error handling
-		namespace, err := utils.GetNamespace(TYPE_AWS)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.Namespace = namespace // TODO allow empty or default clusters ns
-
-		// GetAWSCreds with error handling
-		awsCreds, err := utils.GetAWSCreds()
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.AWSCreds = awsCreds
-
-		config.SecretCredsName, err = utils.GetAWSSecretCreds()
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-	})
-
-	ginkgo.It("Destroy all AWS hosted clusters on the hub", ginkgo.Label("destroy-all", "all"), func() {
+	ginkgo.It("Destroy all KubeVirt hosted clusters on the hub", ginkgo.Label("all"), func() {
 		startTime := time.Now()
 
-		hostedClusterList, err := utils.GetHostedClustersList(dynamicClient, TYPE_AWS, "")
+		// get list of kubevirt hosted clusters
+		hostedClusterList, err := utils.GetHostedClustersList(dynamicClient, TYPE_KUBEVIRT, "")
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		// if hostedClusterList is empty, skip the test
@@ -40,12 +25,15 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 			ginkgo.Skip("No hosted clusters found on the hub")
 		}
 
-		// Run destroy command on all AWS hosted clusters without waiting to verify at first
+		for _, hostedCluster := range hostedClusterList {
+			fmt.Printf("Hosted Cluster found: %s\n", hostedCluster.GetName())
+		}
+
+		// Run destroy command on all kubevirt hosted clusters without waiting to verify at first
 		for _, hostedCluster := range hostedClusterList {
 			commandArgs := []string{
-				"destroy", "cluster", TYPE_AWS,
+				"destroy", "cluster", TYPE_KUBEVIRT,
 				"--name", hostedCluster.GetName(),
-				"--secret-creds", config.SecretCredsName,
 				"--namespace", hostedCluster.GetNamespace(),
 				"--destroy-cloud-resources",
 			}
@@ -73,7 +61,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		fmt.Println("========================= End Test Destroy Hosted Clusters ===============================")
 	})
 
-	ginkgo.It("Destroy a AWS hosted cluster on the hub", ginkgo.Label("destroy", "single"), func() {
+	ginkgo.It("Destroy a KubeVirt hosted cluster on the hub", ginkgo.Label("single"), func() {
 		startTime := time.Now()
 
 		config.ClusterName, err = utils.GetClusterName("")
@@ -84,9 +72,8 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		}
 
 		commandArgs := []string{
-			"destroy", "cluster", TYPE_AWS,
+			"destroy", "cluster", TYPE_KUBEVIRT,
 			"--name", config.ClusterName,
-			"--secret-creds", config.SecretCredsName,
 			"--namespace", config.Namespace,
 			"--destroy-cloud-resources",
 		}
@@ -111,14 +98,3 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		fmt.Println("========================= End Test Destroy Hosted Cluster ===============================")
 	})
 })
-
-// TODO FOR ALL
-// -> Check if HC is destroyed, if not, dump HC to file?
-
-// TODO destroyHostedCluster(hostedClusterName string)
-// -> Given hosted cluster name, destroy it
-// -> fail test if any errors
-
-// TODO destroyHostedClustersLabel(label string) -> make sharable function out of it?
-// -> Destroy all hosted clusters on hub with given label string
-// -> use labelSelector when getting the list of hosted clusters

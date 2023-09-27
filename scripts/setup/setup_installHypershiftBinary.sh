@@ -15,6 +15,7 @@ echo "$(date) HC_CLI_OS = ${HC_CLI_OS}"
 echo "$(date) HC_CLI_ARCH = ${HC_CLI_ARCH}" 
 
 echo "$(date) Curl, extract, and move to CLI to PATH"
+echo "curl -ko ${HCP_BINARY_NAME}.tar.gz https://$(oc get routes ${HCP_BINARY_NAME}-cli-download -n ${MCE_NS} -o jsonpath="{.spec.host}")/${HC_CLI_OS}/${HC_CLI_ARCH}/${HCP_BINARY_NAME}.tar.gz"
 curl -ko ${HCP_BINARY_NAME}.tar.gz https://$(oc get routes ${HCP_BINARY_NAME}-cli-download -n ${MCE_NS} -o jsonpath="{.spec.host}")/${HC_CLI_OS}/${HC_CLI_ARCH}/${HCP_BINARY_NAME}.tar.gz
 if [ $? -ne 0 ]; then
     echo "$(date) failed to curl ${HCP_BINARY_NAME}.tar.gz"

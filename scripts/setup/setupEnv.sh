@@ -3,4 +3,4 @@
 # Requires all variables already set as required by setup scripts
 
 ./setup_installHypershiftBinary.sh
-./setup_createHostedClusterAWS.sh
+./setup_create_aws_hcp_secrets.sh
