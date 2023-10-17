@@ -56,7 +56,7 @@ func promQueryVector(ctx context.Context, query string, ts time.Time, opts ...st
 	return vec
 }
 
-var _ = g.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", g.Label("metrics", "@e2e", "@post-upgrade"), func() {
+var _ = g.Describe("Hypershift Add-on Promethesus/Metrics Tests:", g.Label("metrics", "@e2e", "@post-upgrade"), func() {
 
 	g.BeforeEach(func() {
 		// number of total hosted clusters
