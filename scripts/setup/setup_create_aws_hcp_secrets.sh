@@ -108,9 +108,9 @@ fi
 echo
 
 echo "$(date) creating secret hypershift-operator-external-dns-credentials..."
-oc delete secret hypershift-operator-external-dns-credentials --ignore-not-found -n ${HOSTING_CLUSTER_NAME}
-oc create secret generic hypershift-operator-external-dns-credentials --from-file=credentials=${AWS_CREDS_FILE} --from-literal=provider=aws --from-literal=domain-filter=${EXT_DNS_DOMAIN} -n ${HOSTING_CLUSTER_NAME}
-oc label secret hypershift-operator-external-dns-credentials -n ${HOSTING_CLUSTER_NAME} cluster.open-cluster-management.io/backup=true --overwrite
+oc delete secret hypershift-operator-external-dns-credentials --ignore-not-found -n local-cluster
+oc create secret generic hypershift-operator-external-dns-credentials --from-file=credentials=${AWS_CREDS_FILE} --from-literal=provider=aws --from-literal=domain-filter=${EXT_DNS_DOMAIN} -n local-cluster
+oc label secret hypershift-operator-external-dns-credentials -n local-cluster cluster.open-cluster-management.io/backup=true --overwrite
 if [ $? -ne 0 ]; then
     echo "$(date) failed to create secret hypershift-operator-external-dns-credentials"
     exit 1

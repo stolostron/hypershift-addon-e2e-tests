@@ -20,11 +20,6 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 		config.Namespace = namespace // TODO allow empty or default clusters ns
 
-		// GetAWSCreds with error handling
-		awsCreds, err := utils.GetAWSCreds()
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.AWSCreds = awsCreds
-
 		config.SecretCredsName, err = utils.GetAWSSecretCreds()
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})

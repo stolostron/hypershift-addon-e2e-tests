@@ -25,7 +25,6 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Create Tests:", ginkgo.Lab
 		// TODO ensure auto-import is enabled
 		// oc get addondeploymentconfig hypershift-addon-deploy-config -n mce -ojson | jq '.spec.ports | map(.name == "autoImportDisabled") | index(true)'
 		// TODO check disable auto-import, MC not auto created even after HCP is ready
-
 		commandArgs := []string{
 			"create", "cluster", TYPE_AWS,
 			"--name", config.ClusterName,
@@ -34,8 +33,11 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Create Tests:", ginkgo.Lab
 			"--node-pool-replicas", config.NodePoolReplicas,
 			"--namespace", config.Namespace,
 			"--instance-type", config.InstanceType,
-			"--release-image", config.ReleaseImage,
+			"--release-image", "quay.io/openshift-release-dev/ocp-release:4.13.0-multi",
+			// "--release-image", config.ReleaseImage,
+			"--fips",
 			"--generate-ssh",
+			//		"--pausedUntil", "true",
 		}
 
 		cmd := exec.Command(utils.HypershiftCLIName, commandArgs...)
@@ -62,6 +64,8 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Create Tests:", ginkgo.Lab
 			utils.WaitForClusterAddonsAvailable(dynamicClient, config.ClusterName)
 			fmt.Printf("Time taken for the cluster be imported and addons ready: %s\n", time.Since(startTime).String())
 		})
+
+		// TODO Set fips=true label on the cluster
 
 		// TODO check if cluster has external-dns applied by checking HC conditions, api url, etc.
 
