@@ -18,4 +18,7 @@ const (
 	UnknownErrorLink            = "https://github.com/stolostron/cluster-lifecycle-e2e/blob/main/doc/e2eFailedAnalysis.md#unknown-error"
 	eventuallyTimeout           = 15 * time.Minute
 	eventuallyInterval          = 5 * time.Second
+	TYPE_AWS                    = "AWS"
+	TYPE_KUBEVIRT               = "KubeVirt"
+	TYPE_AGENT                  = "Agent"
 )

@@ -56,8 +56,8 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", ginkg
 		// TODO expose ssh keys
 		commandArgs = append(commandArgs, "--generate-ssh")
 
-		// TODO don't provide by default or set default if not set
-		//commandArgs = append(commandArgs, "--control-plane-availability-policy", "SingleReplica")
+		// TODO set pausedUntil true, as long as we are doing cluster curator as well
+		//commandArgs = append(commandArgs, "--pausedUntil", "true")
 
 		cmd := exec.Command(utils.HypershiftCLIName, commandArgs...)
 		session, err := gexec.Start(cmd, ginkgo.GinkgoWriter, ginkgo.GinkgoWriter)

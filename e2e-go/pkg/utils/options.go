@@ -190,17 +190,12 @@ func GetClusterName(provider string) (string, error) {
 	}
 }
 
-// GetNamespace returns the Namespace for the supported providers suppled in the options.yaml file
+// GetNamespace returns the namespace set in the env variable HCP_NAMESPACE or defaults to "hcp-ns"
 func GetNamespace(provider string) (string, error) {
 	if os.Getenv("HCP_NAMESPACE") != "" {
 		return os.Getenv("HCP_NAMESPACE"), nil
 	}
-	switch provider {
-	case "aws":
-		return TestOptions.Options.HostedCluster.AWS.Namespace, nil
-	default:
-		return "", fmt.Errorf("options provider %s is not supported", provider)
-	}
+	return "hcp-ns", nil
 }
 
 // GetRegion returns the region for the supported cloud providers
