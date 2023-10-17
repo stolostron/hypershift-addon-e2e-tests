@@ -11,14 +11,14 @@ import (
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
+	routeclient "github.com/openshift/client-go/route/clientset/versioned"
+	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
+	libgocmd "github.com/stolostron/library-e2e-go/pkg/cmd"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
-
-	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
-	libgocmd "github.com/stolostron/library-e2e-go/pkg/cmd"
 )
 
 type Config struct {
@@ -46,6 +46,7 @@ const (
 var (
 	dynamicClient             dynamic.Interface
 	kubeClient                kubernetes.Interface
+	routeClient               routeclient.Interface
 	addonClient               addonv1alpha1client.Interface
 	defaultManagedCluster     string
 	defaultInstallNamespace   string
@@ -78,11 +79,19 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	dynamicClient, err = utils.NewDynamicClient()
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
+	// kube client
 	kubeClient, err = utils.NewKubeClient()
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	cfg, err := utils.NewKubeConfig()
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	// route client
+	routeClient, err = utils.NewRouteV1Client()
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	// httpc = kubeClient.CoreV1().RESTClient().(*rest.RESTClient).Client
+	// restClient := kubeClient.CoreV1().RESTClient()
 
 	addonClient, err = addonv1alpha1client.NewForConfig(cfg)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())

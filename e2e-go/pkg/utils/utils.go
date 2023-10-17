@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega/gexec"
+	routeclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,6 +92,26 @@ func NewKubeConfig() (*rest.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func NewRouteV1Client() (routeclient.Interface, error) {
+	kubeConfigFile, err := getKubeConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Use kubeconfig file: %s\n", kubeConfigFile)
+
+	clusterCfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
+	if err != nil {
+		return nil, err
+	}
+
+	routeClient, err := routeclient.NewForConfig(clusterCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return routeClient, nil
 }
 
 func HasResource(dynamicClient dynamic.Interface, gvr schema.GroupVersionResource, namespace, name string) (bool, error) {
