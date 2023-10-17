@@ -26,11 +26,11 @@ func GetHostedClustersList(hubClientDynamic dynamic.Interface, hostedClusterType
 		return nil, err
 	}
 
-	finalHCList := []*unstructured.Unstructured{}
 	if hostedClusterType != "" {
+		finalHCList := []*unstructured.Unstructured{}
 		for _, hostedCluster := range hostedClusterList {
 			// filter by spec.platform.type
-			if hostedCluster.Object["spec"].(map[string]interface{})["platform"].(map[string]interface{})["type"] != hostedClusterType {
+			if hostedCluster.Object["spec"].(map[string]interface{})["platform"].(map[string]interface{})["type"] == hostedClusterType {
 				finalHCList = append(finalHCList, hostedCluster)
 			}
 		}
@@ -38,6 +38,24 @@ func GetHostedClustersList(hubClientDynamic dynamic.Interface, hostedClusterType
 	}
 
 	return hostedClusterList, nil
+}
+
+// GetAWSHostedClustersList gets the list of AWS HostedClusters of some type with some label selector
+// If label selector are not provided, it returns all AWS HostedClusters
+func GetAWSHostedClustersList(hubClientDynamic dynamic.Interface, labelSelector string) ([]*unstructured.Unstructured, error) {
+	return GetHostedClustersList(hubClientDynamic, TYPE_AWS, labelSelector)
+}
+
+// GetKubevirtHostedClustersList gets the list of Kubevirt HostedClusters of some type with some label selector
+// If label selector are not provided, it returns all Kubevirt HostedClusters
+func GetKubevirtHostedClustersList(hubClientDynamic dynamic.Interface, labelSelector string) ([]*unstructured.Unstructured, error) {
+	return GetHostedClustersList(hubClientDynamic, TYPE_KUBEVIRT, labelSelector)
+}
+
+// GetAgentHostedClustersList gets the list of Agent HostedClusters of some type with some label selector
+// If label selector are not provided, it returns all Agent HostedClusters
+func GetAgentHostedClustersList(hubClientDynamic dynamic.Interface, labelSelector string) ([]*unstructured.Unstructured, error) {
+	return GetHostedClustersList(hubClientDynamic, TYPE_AGENT, labelSelector)
 }
 
 func CheckHCPAvailable(hubClientDynamic dynamic.Interface, clusterName string, namespace string) error {
