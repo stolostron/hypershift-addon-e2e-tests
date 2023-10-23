@@ -78,7 +78,7 @@ func CheckHCPAvailable(hubClientDynamic dynamic.Interface, clusterName string, n
 		(condition["reason"] == "AsExpected") {
 		return nil
 	} else {
-		fmt.Printf("HostedCluster %s: Current is not equal to \"%s\" but \"%v\"\n", clusterName, metav1.ConditionTrue, v)
+		fmt.Printf("HostedCluster %s: Expected condition \"%s\" but got \"%v\"\n", clusterName, metav1.ConditionTrue, v)
 		return generateErrorMsg(UnknownError, UnknownErrorLink,
 			"HostedCluster control plane not available!",
 			"HostedCluster control plane not available!")

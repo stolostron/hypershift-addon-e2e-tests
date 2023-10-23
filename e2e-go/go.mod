@@ -5,19 +5,33 @@ go 1.20
 require (
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
+	github.com/openshift/client-go v0.0.0-20231005121823-e81400b97c46
+	github.com/openshift/library-go v0.0.0-20231016155954-11c72a39f742
+	github.com/prometheus/client_golang v1.17.0
+	github.com/prometheus/common v0.44.0
 	github.com/stolostron/library-e2e-go v0.0.0-20230104093627-3d6e66f9cdd8
 	k8s.io/api v0.28.2
+	k8s.io/apiextensions-apiserver v0.28.2
 	k8s.io/apimachinery v0.28.2
 	k8s.io/client-go v0.28.2
 	open-cluster-management.io/api v0.11.0
 )
 
 require (
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/openshift/api v0.0.0-20231010075512-1ccc6058c62d // indirect
-	github.com/openshift/client-go v0.0.0-20231005121823-e81400b97c46 // indirect
-	github.com/openshift/library-go v0.0.0-20231016155954-11c72a39f742 // indirect
-	github.com/prometheus/client_golang v1.17.0 // indirect
-	github.com/prometheus/common v0.44.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16 // indirect
+	github.com/prometheus/procfs v0.11.1 // indirect
+	github.com/stolostron/applier v1.0.1 // indirect
+	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
+	k8s.io/component-base v0.28.2 // indirect
+	sigs.k8s.io/controller-runtime v0.14.4 // indirect
 )
 
 require (

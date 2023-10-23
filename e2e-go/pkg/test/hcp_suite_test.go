@@ -3,6 +3,7 @@ package hypershift_test
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"testing"
@@ -14,11 +15,14 @@ import (
 	routeclient "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
 	libgocmd "github.com/stolostron/library-e2e-go/pkg/cmd"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	addonv1alpha1client "open-cluster-management.io/api/client/addon/clientset/versioned"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Config struct {
@@ -47,13 +51,17 @@ var (
 	dynamicClient             dynamic.Interface
 	kubeClient                kubernetes.Interface
 	routeClient               routeclient.Interface
+	httpc                     *http.Client
+	clientClient              client.Client
 	addonClient               addonv1alpha1client.Interface
+	apiExtensionsClient       apiextensionsclient.Interface
 	defaultManagedCluster     string
 	defaultInstallNamespace   string
 	mceNamespace              string
 	config                    Config
 	err                       error
 	hcpCliConsoleDownloadSpec map[string]interface{}
+	curatorEnabled            string
 )
 
 func TestE2e(t *testing.T) {
@@ -90,7 +98,15 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	routeClient, err = utils.NewRouteV1Client()
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	// httpc = kubeClient.CoreV1().RESTClient().(*rest.RESTClient).Client
+	apiExtensionsClient, err = apiextensionsclient.NewForConfig(cfg)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	clientClient, err = client.New(cfg, client.Options{})
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	// http client
+	httpc, err = rest.HTTPClientFor(cfg)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	// restClient := kubeClient.CoreV1().RESTClient()
 
 	addonClient, err = addonv1alpha1client.NewForConfig(cfg)
@@ -199,6 +215,9 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 
 	// GetSecretCreds
 	config.SecretCredsName, err = utils.GetAWSSecretCreds()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	curatorEnabled, err = utils.GetCuratorEnabled()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }, func() {})
 
