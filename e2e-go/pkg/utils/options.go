@@ -308,3 +308,27 @@ func GetAWSSecretCreds() (string, error) {
 	}
 	return TestOptions.Options.CloudConnection.APIKeys.AWSCredsName, nil
 }
+
+// GetTowerHost returns the AAP Tower Host used for cluster curator auth
+func GetTowerHost() (string, error) {
+	if os.Getenv("AAP_HOST") != "" {
+		return os.Getenv("AAP_HOST"), nil
+	}
+	return "", nil
+}
+
+// GetTowerToken returns the AAP Tower Token used for cluster curator auth
+func GetTowerToken() (string, error) {
+	if os.Getenv("AAP_TOKEN") != "" {
+		return os.Getenv("AAP_TOKEN"), nil
+	}
+	return "", nil
+}
+
+// GetCuratorEnabled returns if AAP curator hooks tests should be enabled
+func GetCuratorEnabled() (string, error) {
+	if os.Getenv("CURATOR_ENABLED") != "" {
+		return os.Getenv("CURATOR_ENABLED"), nil
+	}
+	return "true", nil
+}

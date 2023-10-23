@@ -87,7 +87,7 @@ var _ = g.Describe("Hypershift Add-on Promethesus/Metrics Tests:", g.Label("metr
 		o.Expect(err).ToNot(o.HaveOccurred())
 	})
 
-	g.It("Checks if service monitors are deployed to the correct namespaces", g.Label("service_monitor"), func() {
+	g.It("Hypershift: RHACM4K-39628: ServiceMonitor is correctly deployed against the correct namespaces for Prometheus metrics", g.Label("service_monitor"), func() {
 		// Check service monitors does not exist in the openshift-monitoring namespace
 		_, err := utils.GetResource(dynamicClient, serviceMonitorGVR, "openshift-monitoring", MCE_HS_SERVICE_MONITOR)
 		o.Expect(errors.IsNotFound(err)).Should(o.BeTrue())
@@ -128,7 +128,7 @@ var _ = g.Describe("Hypershift Add-on Promethesus/Metrics Tests:", g.Label("metr
 	// 	- mce_hs_addon_install_failing_gauge_bool			should be 0
 	// 	- mce_hs_addon_failed_to_start_bool					should be 0
 	//	- mce_hs_addon_hypershift_operator_degraded_bool	should be 0
-	g.It("Retrieve promethesus metrics related to hypershift-addon health", g.Label("metrics", "health"), func() {
+	g.It("Hypershift: RHACM4K-39627:  As a cluster admin, I can retrieve/observe Prometheus metrics for the hypershift add-on health", g.Label("metrics", "sanity"), func() {
 		startTime := time.Now()
 		fmt.Println("========================= Start Test Hypershift add-on health metrics ===============================")
 
@@ -156,7 +156,7 @@ var _ = g.Describe("Hypershift Add-on Promethesus/Metrics Tests:", g.Label("metr
 		fmt.Println("========================= Start Test Hypershift add-on health metrics ===============================")
 	})
 
-	g.It("Retrieve promethesus metrics related to hosted clusters", g.Label("metrics"), func() {
+	g.It("Hypershift: RHACM4K-39474: As a cluster admin, I can retrieve/observe Prometheus metrics for my hosted clusters", g.Label("metrics"), func() {
 		startTime := time.Now()
 
 		fmt.Println("========================= Start Test Hosted Clusters Metrics ===============================")

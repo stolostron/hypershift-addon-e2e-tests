@@ -1,0 +1,60 @@
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: ClusterCurator
+metadata:
+  name: {{ .ClusterName }}
+  namespace: {{ .ClusterNamespace }}
+spec:
+  desiredCuration: {{ .DesiredCuration }}
+  destroy:
+    jobMonitorTimeout: 5
+    posthook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: post
+        stage: destroy
+      name: Auto_CLC_Sample_Template
+      type: Job
+    prehook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: pre
+        stage: destroy
+      name: Auto_CLC_Sample_Template
+      type: Job
+    towerAuthSecret: {{ .AnsibleTowerSecret }}
+  install:
+    jobMonitorTimeout: 5
+    posthook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: post
+        stage: install
+      name: Auto_CLC_Sample_Template
+      type: Job
+    prehook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: pre
+        stage: install
+      name: Auto_CLC_Sample_Template
+      type: Job
+    towerAuthSecret: {{ .AnsibleTowerSecret }}
+  scale:
+    jobMonitorTimeout: 5
+  upgrade:
+    monitorTimeout: 120
+    posthook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: post
+        stage: upgrade
+      name: Auto_CLC_Sample_Template
+      type: Job
+    prehook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: post
+        stage: upgrade
+      name: Auto_CLC_Sample_Template
+      type: Job
+    towerAuthSecret: {{ .AnsibleTowerSecret }}
