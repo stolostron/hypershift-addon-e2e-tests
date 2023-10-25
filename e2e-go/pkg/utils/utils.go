@@ -360,7 +360,7 @@ type PodInfo struct {
 	Restarts int32
 }
 
-func getPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, error) {
+func GetPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, error) {
 	// Get pod list
 	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -376,6 +376,11 @@ func getPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, 
 			Restarts: pod.Status.ContainerStatuses[0].RestartCount,
 			Age:      time.Since(pod.ObjectMeta.CreationTimestamp.Time).String(),
 		}
+		fmt.Printf("Name: ", pod.Name)
+		fmt.Printf("Ready: ", pod.Status.ContainerStatuses[0].Ready)
+		fmt.Printf("Status: ", string(pod.Status.Phase))
+		fmt.Printf("Restarts: ", pod.Status.ContainerStatuses[0].RestartCount)
+		fmt.Printf("Age:: ", time.Since(pod.ObjectMeta.CreationTimestamp.Time).String())
 		podInfoList = append(podInfoList, podInfo)
 	}
 	return podInfoList, nil

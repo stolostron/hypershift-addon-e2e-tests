@@ -61,6 +61,7 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 			// secret, err := utils.GetSecretInNamespace(kubeClient, namespace, secretName)
 			// Update secret
 			utils.UpdateSecret(context.TODO(), kubeClient, namespace, secretName, keyToFind, newKey, newValue)
+			utils.GetPodsInfoList(kubeClient, namespace)
 		})
 	})
 })
