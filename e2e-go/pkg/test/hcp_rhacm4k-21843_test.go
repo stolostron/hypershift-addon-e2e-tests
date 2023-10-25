@@ -19,7 +19,7 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 		namespace2 = "open-cluster-management-agent-addon"
 		keyToFind  = "region"
 		newKey     = "test"
-		newValue   = "dXMtZWFzdC0x----"
+		newValue   = "12312132123===="
 	)
 
 	ginkgo.It("Get, modify, and verify the s3 secret", func() {
