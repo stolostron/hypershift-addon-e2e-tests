@@ -16,6 +16,7 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 	var (
 		secretName = "hypershift-operator-oidc-provider-s3-credentials"
 		namespace  = "local-cluster"
+		namespace2 = "open-cluster-management-agent-addon"
 		keyToFind  = "region"
 		newKey     = "test"
 		newValue   = "dXMtZWFzdC0x----"
@@ -61,7 +62,7 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 
 			// Update secret
 			utils.UpdateSecret(context.TODO(), kubeClient, namespace, secretName, keyToFind, newKey, newValue)
-			utils.GetPodsInfoList(kubeClient, namespace)
+			utils.GetPodsInfoList(kubeClient, namespace2)
 		})
 	})
 })
