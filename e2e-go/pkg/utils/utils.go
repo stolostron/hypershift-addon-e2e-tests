@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	ginkgo "github.com/onsi/ginkgo/v2"
@@ -244,13 +245,54 @@ func CreateOIDCProviderSecret(ctx context.Context, client kubernetes.Interface, 
 	return err
 }
 
-func GetResourceDecodedSecretValue(client kubernetes.Interface, namespace, secretName, secretKey string, base64Decode bool) (string, error) {
+/*
+- This functions return a specific secret in a namesapce and verfies it exists
+*/
+func GetSecretInNamespace(client kubernetes.Interface, namespace string, secretName string) (*corev1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("Error fetching secret: %v\n", err)
-		return "", err
+		return nil, fmt.Errorf("Error getting secret: %v", err)
 	}
 	fmt.Printf("Secret %s found in namespace %s\n", secretName, namespace)
+	return secret, err
+}
+
+func UpdateSecret(ctx context.Context, client kubernetes.Interface, namespace string, secretName string, key string, newKey string, newKeyValue string) error {
+	secret, err := GetSecretInNamespace(client, namespace, secretName)
+	if err != nil {
+		return err
+	}
+	// Check if the key exists in the secret
+	if _, exists := secret.Data[key]; !exists {
+		return fmt.Errorf("Key '%s' does not exist in the secret", key)
+	}
+	// Add a new key-value pair right after the existing key
+	updatedData := make(map[string][]byte)
+	for k, v := range secret.Data {
+		updatedData[k] = v
+		if k == key {
+			updatedData[newKey] = []byte(newKeyValue)
+		}
+	}
+	// Update the secret data
+	secret.Data = updatedData
+
+	_, err = client.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("Error updating secret: %v", err)
+	}
+
+	return nil
+}
+
+func GetResourceDecodedSecretValue(client kubernetes.Interface, namespace, secretName, secretKey string, base64Decode bool) (string, error) {
+	// secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	// if err != nil {
+	// 	fmt.Printf("Error fetching secret: %v\n", err)
+	// 	return "", err
+	// }
+	// fmt.Printf("Secret %s found in namespace %s\n", secretName, namespace)
+	secret, err := GetSecretInNamespace(client, namespace, secretName)
 
 	encodedValue, exists := secret.Data[secretKey]
 	if !exists {
@@ -297,4 +339,44 @@ func generateErrorMsg(tag, solution, reason, errmsg string) error {
 		"Reason: %v, "+
 		"Error message: %v,",
 		tag, solution, reason, errmsg)
+}
+
+/*
+- This function returns the list of pods and their info info (Name, Ready, Status, Restarts, Age) in a specific namespace
+
+	type PodInfo struct {
+	Name     string
+	Ready    bool
+	Status   string
+	Age      string
+	Restarts int32
+	}
+*/
+type PodInfo struct {
+	Name     string
+	Ready    bool
+	Status   string
+	Age      string
+	Restarts int32
+}
+
+func getPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, error) {
+	// Get pod list
+	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Error getting pod list: %v", err)
+	}
+	// Extract pod details
+	var podInfoList []PodInfo
+	for _, pod := range pods.Items {
+		podInfo := PodInfo{
+			Name:     pod.Name,
+			Ready:    pod.Status.ContainerStatuses[0].Ready,
+			Status:   string(pod.Status.Phase),
+			Restarts: pod.Status.ContainerStatuses[0].RestartCount,
+			Age:      time.Since(pod.ObjectMeta.CreationTimestamp.Time).String(),
+		}
+		podInfoList = append(podInfoList, podInfo)
+	}
+	return podInfoList, nil
 }
