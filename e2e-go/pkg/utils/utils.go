@@ -376,11 +376,11 @@ func GetPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, 
 			Restarts: pod.Status.ContainerStatuses[0].RestartCount,
 			Age:      time.Since(pod.ObjectMeta.CreationTimestamp.Time).String(),
 		}
-		fmt.Printf("Name: ", pod.Name)
-		fmt.Printf("Ready: ", pod.Status.ContainerStatuses[0].Ready)
-		fmt.Printf("Status: ", string(pod.Status.Phase))
-		fmt.Printf("Restarts: ", pod.Status.ContainerStatuses[0].RestartCount)
-		fmt.Printf("Age:: ", time.Since(pod.ObjectMeta.CreationTimestamp.Time).String())
+		fmt.Printf("Name: %v", pod.Name)
+		fmt.Printf("Ready: %v", pod.Status.ContainerStatuses[0].Ready)
+		fmt.Printf("Status: %v", string(pod.Status.Phase))
+		fmt.Printf("Restarts: %v", pod.Status.ContainerStatuses[0].RestartCount)
+		fmt.Printf("Age: %v", time.Since(pod.ObjectMeta.CreationTimestamp.Time).String())
 		podInfoList = append(podInfoList, podInfo)
 	}
 	return podInfoList, nil
