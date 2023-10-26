@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	ginkgo "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	routeclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -259,12 +260,13 @@ func GetSecretInNamespace(client kubernetes.Interface, namespace string, secretN
 
 func UpdateSecret(ctx context.Context, client kubernetes.Interface, namespace string, secretName string, key string, newKey string, newKeyValue string) error {
 	secret, err := GetSecretInNamespace(client, namespace, secretName)
-	if err != nil {
-		return err
-	}
-	if secret == nil {
-		os.Exit(1)
-	}
+	// if err != nil {
+	// 	return err
+	// }
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get secret")
+	gomega.Expect(secret).NotTo(gomega.BeNil(), "Secret not found")
+	gomega.Expect(secret.Data).NotTo(gomega.BeEmpty(), "Secret data is empty")
+
 	// Check if the key exists in the secret
 	if _, exists := secret.Data[key]; !exists {
 		return fmt.Errorf("Key '%s' does not exist in the secret", key)
