@@ -252,17 +252,23 @@ func CreateOIDCProviderSecret(ctx context.Context, client kubernetes.Interface, 
 func GetSecretInNamespace(client kubernetes.Interface, namespace string, secretName string) (*corev1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
+		fmt.Printf("Secret %s not found in namespace %s\n", secretName, namespace)
 		return nil, fmt.Errorf("Error getting secret: %v", err)
 	}
 	fmt.Printf("Secret %s found in namespace %s\n", secretName, namespace)
 	return secret, err
 }
 
+/*
+  - This function add a new key pair to an existing secret abd vlidates it got successfully updated
+    1- Get the secret
+    2- Inject a new key pair value to it
+    3- Update the secret
+    4- Get the updated secret
+    5- Verifies if the new secret data was updated with the new key pair
+*/
 func UpdateSecret(ctx context.Context, client kubernetes.Interface, namespace string, secretName string, key string, newKey string, newKeyValue string) error {
 	secret, err := GetSecretInNamespace(client, namespace, secretName)
-	// if err != nil {
-	// 	return err
-	// }
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get secret")
 	gomega.Expect(secret).NotTo(gomega.BeNil(), "Secret not found")
 	gomega.Expect(secret.Data).NotTo(gomega.BeEmpty(), "Secret data is empty")
@@ -281,11 +287,15 @@ func UpdateSecret(ctx context.Context, client kubernetes.Interface, namespace st
 	}
 	// Update the secret data
 	secret.Data = updatedData
-
 	_, err = client.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("Error updating secret: %v", err)
-	}
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to update secret")
+
+	// Get the updated secret
+	updatedSecret, err := GetSecretInNamespace(client, namespace, secretName)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get updated secret")
+
+	// Add assertions to verify the updated secret data
+	gomega.Expect(updatedSecret.Data[newKey]).To(gomega.Equal([]byte(newKeyValue)))
 
 	return nil
 }
@@ -347,6 +357,67 @@ func generateErrorMsg(tag, solution, reason, errmsg string) error {
 }
 
 /*
+- This function returns the Pods list in a namespace
+*/
+func GetPodsInNamespace(client kubernetes.Interface, namespace string) (*corev1.PodList, error) {
+	// Get pod list
+	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Error getting pod list: %v", err)
+	}
+	return pods, err
+}
+
+/*
+- This function verifies if all pods in a specified namespace are up and running
+*/
+func VerifiesAllPodsAreRunning(client kubernetes.Interface, namespace string, timeoutInMinutes time.Duration) (*corev1.PodList, error) {
+	// Set a timeout of 5 minutes
+	timeout := timeoutInMinutes * time.Minute
+
+	startTime := time.Now()
+
+	// Continuously check pod statuses for 5 minutes
+	for {
+		// Check if 5 minutes have passed
+		if time.Since(startTime) >= timeout {
+			fmt.Println("Timeout reached. Exiting.")
+			break
+		}
+
+		// Get pods in the specified namespace
+		pods, err := GetPodsInNamespace(client, namespace)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to list pods")
+
+		allRunning := true
+
+		// Verify that all pods are in the "Running" phase
+		for _, pod := range pods.Items {
+			if pod.Status.Phase != corev1.PodRunning {
+				allRunning = false
+				break
+			}
+		}
+
+		if allRunning {
+			fmt.Println("All pods are running.")
+			break
+		}
+
+		// Sleep for a short duration before checking again
+		time.Sleep(2 * time.Second)
+	}
+}
+
+type PodInfo struct {
+	Name     string
+	Ready    bool
+	Status   string
+	Age      string
+	Restarts int32
+}
+
+/*
 - This function returns the list of pods and their info info (Name, Ready, Status, Restarts, Age) in a specific namespace
 
 	type PodInfo struct {
@@ -357,20 +428,11 @@ func generateErrorMsg(tag, solution, reason, errmsg string) error {
 	Restarts int32
 	}
 */
-type PodInfo struct {
-	Name     string
-	Ready    bool
-	Status   string
-	Age      string
-	Restarts int32
-}
-
 func GetPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, error) {
 	// Get pod list
-	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Error getting pod list: %v", err)
-	}
+	pods, err := GetPodsInNamespace(client, namespace)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get pods in namespace: "+namespace)
+
 	// Extract pod details
 	var podInfoList []PodInfo
 	for _, pod := range pods.Items {
@@ -389,4 +451,65 @@ func GetPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, 
 		podInfoList = append(podInfoList, podInfo)
 	}
 	return podInfoList, nil
+}
+
+/*
+- This functions takes a namespace and label selector as input and retrieves the last created pod with that label.
+*/
+func GetLastCreatedPodWithLabel(client kubernetes.Interface, namespace string, labelSelector string) (*corev1.Pod, error) {
+	// Get pods with the specified label selector
+	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		return nil, fmt.Errorf("Error getting pods: %v", err)
+	}
+
+	// Find the latest creation time
+	var latestTime time.Time
+	var latestPod *corev1.Pod
+
+	for _, pod := range pods.Items {
+		creationTime := pod.ObjectMeta.CreationTimestamp.Time
+		if creationTime.After(latestTime) {
+			latestTime = creationTime
+			latestPod = &pod
+		}
+	}
+
+	if latestPod == nil {
+		return nil, fmt.Errorf("No pods found with label selector %s", labelSelector)
+	}
+	return latestPod, nil
+}
+
+func GetPodAndVerifyIfRecreated(client kubernetes.Interface, namespace string, podName string) error {
+
+	// Get the pod
+	pod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get pod "+podName)
+	// Store the initial creation timestamp
+	initialCreationTime := pod.ObjectMeta.CreationTimestamp.Time
+
+	// Loop until pod reaches a terminal state (completed or failed)
+	for {
+		// Check if pod is in a terminal state
+		if pod.Status.Phase == "Succeeded" || pod.Status.Phase == "Failed" {
+			fmt.Printf("Pod %s has completed.\n", podName)
+			return nil
+		}
+
+		// Check if pod was re-created (due to a restart)
+		if pod.ObjectMeta.CreationTimestamp.Time.After(initialCreationTime) {
+			fmt.Printf("Pod %s was re-created. Waiting for completion.\n", podName)
+			initialCreationTime = pod.ObjectMeta.CreationTimestamp.Time
+		}
+
+		// Sleep for a short duration before checking again
+		time.Sleep(5 * time.Second)
+
+		// Get the latest pod information
+		pod, err = client.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Error getting pod: %v", err)
+		}
+	}
 }

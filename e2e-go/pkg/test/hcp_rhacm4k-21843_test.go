@@ -2,8 +2,10 @@ package hypershift_test
 
 import (
 	"context"
+	"fmt"
 
 	ginkgo "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
 )
 
@@ -14,24 +16,41 @@ import (
 
 var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should detect changes in S3 secret and re-install the hypershift operator", ginkgo.Label("e2e", "@non-ui", "RHACM4K-21843", TYPE_AWS), func() {
 	var (
-		secretName = "hypershift-operator-oidc-provider-s3-credentials123"
-		namespace  = "local-cluster"
-		namespace2 = "open-cluster-management-agent-addon"
-		keyToFind  = "region"
-		newKey     = "test"
-		newValue   = "12312132123===="
+		secretName      = "hypershift-operator-oidc-provider-s3-credentials"
+		hcpInstallLabel = "hypershift-install-job"
+		namespace       = "local-cluster"
+		namespace2      = "open-cluster-management-agent-addon"
+		keyToFind       = "region"
+		newKey          = "test"
+		newValue        = "12312132123===="
+		podNameBefore   string
+		podNameAfter    string
 	)
 
 	ginkgo.It("Get, modify, and verify the s3 secret", func() {
-
-		ginkgo.By("Step 1: Get the list of Pods before updating the secret", func() {
-			utils.GetPodsInfoList(kubeClient, namespace2)
+		ginkgo.By("Step 1: Get the latest hypershift isntall Pod BEFORE updating the secret", func() {
+			podBefore, err := utils.GetLastCreatedPodWithLabel(kubeClient, namespace2, hcpInstallLabel)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			podNameBefore = podBefore.ObjectMeta.Name
+			podCreationTime := podBefore.ObjectMeta.CreationTimestamp.Time
+			fmt.Printf("BEFORE --> Pod %s found in namespace %s created at %s\n", secretName, namespace2, podCreationTime)
 		})
-		ginkgo.By("Step 2: Update the s3 secret", func() {
-			// Update secret
+		ginkgo.By("Step 2: Update the s3 secret by injecting a new key to it", func() {
 			utils.UpdateSecret(context.TODO(), kubeClient, namespace, secretName, keyToFind, newKey, newValue)
-			// Get the list of pods after the update]
-			utils.GetPodsInfoList(kubeClient, namespace2)
+		})
+		ginkgo.By("Step 3: Get the latest hypershift isntall Pod AFTER updating the secret", func() {
+			podAfter, err := utils.GetLastCreatedPodWithLabel(kubeClient, namespace2, hcpInstallLabel)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			podNameAfter = podAfter.ObjectMeta.Name
+			podCreationTime := podAfter.ObjectMeta.CreationTimestamp.Time
+			fmt.Printf("AFTER --> Pod %s found in namespace %s created at %s\n", secretName, namespace2, podCreationTime)
+		})
+		ginkgo.By("Step 4: Verify that a new hypershift install job is running (podNameAfter should be different podNameBefore)", func() {
+			gomega.Ω(podNameAfter).ShouldNot(gomega.Equal(podNameBefore))
+		})
+		// TODO: Loop for 5 minutes while checking for the pods
+		ginkgo.By("Step 5: Verify that all pods are running, and timeout after 5 minutes", func() {
+			utils.VerifiesAllPodsAreRunning(kubeClient, namespace2, 5)
 		})
 	})
 })
