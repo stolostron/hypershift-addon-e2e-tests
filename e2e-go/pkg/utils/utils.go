@@ -262,6 +262,9 @@ func UpdateSecret(ctx context.Context, client kubernetes.Interface, namespace st
 	if err != nil {
 		return err
 	}
+	if secret == nil {
+		os.Exit(1)
+	}
 	// Check if the key exists in the secret
 	if _, exists := secret.Data[key]; !exists {
 		return fmt.Errorf("Key '%s' does not exist in the secret", key)
