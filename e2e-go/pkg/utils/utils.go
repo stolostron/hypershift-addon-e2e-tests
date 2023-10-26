@@ -454,11 +454,12 @@ func GetPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, 
 }
 
 /*
-- This functions takes a namespace and label selector as input and retrieves the last created pod with that label.
+  - This functions takes a namespace and a Pod name prefix as input and retrieves the last created pod with that pefix if it is set.
+    Note that prefix could be an empty string if you are looking to get all the pods in the namespace
 */
-func GetLastCreatedPodWithLabel(client kubernetes.Interface, namespace string, labelSelector string) (*corev1.Pod, error) {
+func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace string, prefix string) (*corev1.Pod, error) {
 	// Get pods with the specified label selector
-	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
+	pods, err := GetPodsInNamespace(client, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting pods: %v", err)
 	}
@@ -468,6 +469,11 @@ func GetLastCreatedPodWithLabel(client kubernetes.Interface, namespace string, l
 	var latestPod *corev1.Pod
 
 	for _, pod := range pods.Items {
+		if len(prefix) != 0 {
+			if !strings.Contains(pod.ObjectMeta.Name, prefix) {
+				continue
+			}
+		}
 		creationTime := pod.ObjectMeta.CreationTimestamp.Time
 		if creationTime.After(latestTime) {
 			latestTime = creationTime
@@ -476,40 +482,7 @@ func GetLastCreatedPodWithLabel(client kubernetes.Interface, namespace string, l
 	}
 
 	if latestPod == nil {
-		return nil, fmt.Errorf("No pods found with label selector %s", labelSelector)
+		return nil, fmt.Errorf("No pods found with prefix %s", prefix)
 	}
 	return latestPod, nil
-}
-
-func GetPodAndVerifyIfRecreated(client kubernetes.Interface, namespace string, podName string) error {
-
-	// Get the pod
-	pod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
-	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get pod "+podName)
-	// Store the initial creation timestamp
-	initialCreationTime := pod.ObjectMeta.CreationTimestamp.Time
-
-	// Loop until pod reaches a terminal state (completed or failed)
-	for {
-		// Check if pod is in a terminal state
-		if pod.Status.Phase == "Succeeded" || pod.Status.Phase == "Failed" {
-			fmt.Printf("Pod %s has completed.\n", podName)
-			return nil
-		}
-
-		// Check if pod was re-created (due to a restart)
-		if pod.ObjectMeta.CreationTimestamp.Time.After(initialCreationTime) {
-			fmt.Printf("Pod %s was re-created. Waiting for completion.\n", podName)
-			initialCreationTime = pod.ObjectMeta.CreationTimestamp.Time
-		}
-
-		// Sleep for a short duration before checking again
-		time.Sleep(5 * time.Second)
-
-		// Get the latest pod information
-		pod, err = client.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("Error getting pod: %v", err)
-		}
-	}
 }

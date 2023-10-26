@@ -16,20 +16,20 @@ import (
 
 var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should detect changes in S3 secret and re-install the hypershift operator", ginkgo.Label("e2e", "@non-ui", "RHACM4K-21843", TYPE_AWS), func() {
 	var (
-		secretName      = "hypershift-operator-oidc-provider-s3-credentials"
-		hcpInstallLabel = "hypershift-install-job"
-		namespace       = "local-cluster"
-		namespace2      = "open-cluster-management-agent-addon"
-		keyToFind       = "region"
-		newKey          = "test"
-		newValue        = "12312132123===="
-		podNameBefore   string
-		podNameAfter    string
+		secretName       = "hypershift-operator-oidc-provider-s3-credentials"
+		hcpInstallPrefix = "hypershift-install-job"
+		namespace        = "local-cluster"
+		namespace2       = "open-cluster-management-agent-addon"
+		keyToFind        = "region"
+		newKey           = "test"
+		newValue         = "12312132123===="
+		podNameBefore    string
+		podNameAfter     string
 	)
 
 	ginkgo.It("Get, modify, and verify the s3 secret", func() {
 		ginkgo.By("Step 1: Get the latest hypershift isntall Pod BEFORE updating the secret", func() {
-			podBefore, err := utils.GetLastCreatedPodWithLabel(kubeClient, namespace2, hcpInstallLabel)
+			podBefore, err := utils.GetLastCreatedPodWithOptionPrefix(kubeClient, namespace2, hcpInstallPrefix)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			podNameBefore = podBefore.ObjectMeta.Name
 			podCreationTime := podBefore.ObjectMeta.CreationTimestamp.Time
@@ -39,7 +39,7 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 			utils.UpdateSecret(context.TODO(), kubeClient, namespace, secretName, keyToFind, newKey, newValue)
 		})
 		ginkgo.By("Step 3: Get the latest hypershift isntall Pod AFTER updating the secret", func() {
-			podAfter, err := utils.GetLastCreatedPodWithLabel(kubeClient, namespace2, hcpInstallLabel)
+			podAfter, err := utils.GetLastCreatedPodWithOptionPrefix(kubeClient, namespace2, hcpInstallPrefix)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			podNameAfter = podAfter.ObjectMeta.Name
 			podCreationTime := podAfter.ObjectMeta.CreationTimestamp.Time
