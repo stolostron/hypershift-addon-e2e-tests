@@ -371,7 +371,7 @@ func GetPodsInNamespace(client kubernetes.Interface, namespace string) (*corev1.
 /*
 - This function verifies if all pods in a specified namespace are up and running
 */
-func VerifiesAllPodsAreRunning(client kubernetes.Interface, namespace string, timeoutInMinutes time.Duration) (*corev1.PodList, error) {
+func VerifiesAllPodsAreRunning(client kubernetes.Interface, namespace string, timeoutInMinutes time.Duration) {
 	// Set a timeout of 5 minutes
 	timeout := timeoutInMinutes * time.Minute
 
