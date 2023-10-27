@@ -363,7 +363,7 @@ func GetPodsInNamespace(client kubernetes.Interface, namespace string) (*corev1.
 	// Get pod list
 	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("Error getting pod list: %v", err)
+		return nil, fmt.Errorf("Error getting pod list: %v \n", err)
 	}
 	return pods, err
 }
@@ -443,11 +443,11 @@ func GetPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, 
 			Restarts: pod.Status.ContainerStatuses[0].RestartCount,
 			Age:      time.Since(pod.ObjectMeta.CreationTimestamp.Time).String(),
 		}
-		fmt.Printf("Name: %v", pod.Name)
-		fmt.Printf("Ready: %v", pod.Status.ContainerStatuses[0].Ready)
-		fmt.Printf("Status: %v", string(pod.Status.Phase))
-		fmt.Printf("Restarts: %v", pod.Status.ContainerStatuses[0].RestartCount)
-		fmt.Printf("Age: %v", time.Since(pod.ObjectMeta.CreationTimestamp.Time).String())
+		fmt.Printf("Name: %v \n", pod.Name)
+		fmt.Printf("Ready: %v \n", pod.Status.ContainerStatuses[0].Ready)
+		fmt.Printf("Status: %v \n", string(pod.Status.Phase))
+		fmt.Printf("Restarts: %v \n", pod.Status.ContainerStatuses[0].RestartCount)
+		fmt.Printf("Age: %v\n", time.Since(pod.ObjectMeta.CreationTimestamp.Time).String())
 		podInfoList = append(podInfoList, podInfo)
 	}
 	return podInfoList, nil
@@ -461,7 +461,7 @@ func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace st
 	// Get pods with the specified label selector
 	pods, err := GetPodsInNamespace(client, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting pods: %v", err)
+		return nil, fmt.Errorf("Error getting pods: %v \n", err)
 	}
 
 	// Find the latest creation time
@@ -471,12 +471,13 @@ func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace st
 	for _, pod := range pods.Items {
 		if len(prefix) != 0 {
 			podName := pod.ObjectMeta.Name
-			fmt.Printf("podName: %v", podName)
+			fmt.Printf("podName: %v \n", podName)
 			if !strings.HasPrefix(pod.ObjectMeta.Name, prefix) {
-				fmt.Printf("Skipping podName: %v", podName)
+				fmt.Printf("Skipping podName: %v \n", podName)
 				continue
 			}
 		}
+		fmt.Printf("podName with prefix found: %v \n", pod.ObjectMeta.Name)
 		creationTime := pod.ObjectMeta.CreationTimestamp.Time
 		if creationTime.After(latestTime) {
 			latestTime = creationTime
@@ -485,7 +486,7 @@ func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace st
 	}
 
 	if latestPod == nil {
-		return nil, fmt.Errorf("No pods found with prefix %s", prefix)
+		return nil, fmt.Errorf("No pods found with prefix %s \n", prefix)
 	}
 	return latestPod, nil
 }
@@ -500,7 +501,7 @@ func WaitForSuccess(operation func() error, timeoutInSeconds time.Duration) erro
 		}
 
 		if time.Since(startTime) >= timeoutInSeconds {
-			ginkgo.Fail(fmt.Sprintf("Timeout reached while waiting for operation to succeed : %v", err))
+			ginkgo.Fail(fmt.Sprintf("Timeout reached while waiting for operation to succeed : %v \n", err))
 			return fmt.Errorf("Timeout reached while waiting for operation to succeed")
 		}
 

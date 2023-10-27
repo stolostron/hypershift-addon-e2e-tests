@@ -34,7 +34,7 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			podNameBefore = podBefore.ObjectMeta.Name
 			podCreationTime := podBefore.ObjectMeta.CreationTimestamp.Time
-			fmt.Printf("BEFORE --> Pod %s found in namespace %s created at %s\n", podNameBefore, namespace2, podCreationTime)
+			fmt.Printf("BEFORE --> Pod %s found in namespace %s created at %s \n", podNameBefore, namespace2, podCreationTime)
 		})
 		ginkgo.By("Step 2: Update the s3 secret by injecting a new key to it", func() {
 			utils.UpdateSecret(context.TODO(), kubeClient, namespace, secretName, keyToFind, newKey, newValue)
@@ -49,14 +49,14 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 			for {
 				// Check if the 5 minutes have passed
 				if time.Since(startTime) >= timeout {
-					ginkgo.Fail(fmt.Sprintf("Timeout reached while waiting for the operation to succeed : %v", err))
+					ginkgo.Fail(fmt.Sprintf("Timeout reached while waiting for the operation to succeed : % \nv", err))
 					break
 				}
 				podAfter, err := utils.GetLastCreatedPodWithOptionPrefix(kubeClient, namespace2, hcpInstallPrefix)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				podNameAfter = podAfter.ObjectMeta.Name
 				podCreationTime := podAfter.ObjectMeta.CreationTimestamp.Time
-				fmt.Printf("AFTER --> Pod %s found in namespace %s created at %s\n", podNameAfter, namespace2, podCreationTime)
+				fmt.Printf("AFTER --> Pod %s found in namespace %s created at %s \n", podNameAfter, namespace2, podCreationTime)
 				if podNameAfter != podNameBefore {
 					break
 				}
