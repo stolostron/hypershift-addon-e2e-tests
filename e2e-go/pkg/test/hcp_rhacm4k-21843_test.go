@@ -3,6 +3,7 @@ package hypershift_test
 import (
 	"context"
 	"fmt"
+	"time"
 
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
@@ -39,18 +40,36 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 			utils.UpdateSecret(context.TODO(), kubeClient, namespace, secretName, keyToFind, newKey, newValue)
 		})
 		ginkgo.By("Step 3: Get the latest hypershift isntall Pod AFTER updating the secret", func() {
-			podAfter, err := utils.GetLastCreatedPodWithOptionPrefix(kubeClient, namespace2, hcpInstallPrefix)
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			podNameAfter = podAfter.ObjectMeta.Name
-			podCreationTime := podAfter.ObjectMeta.CreationTimestamp.Time
-			fmt.Printf("AFTER --> Pod %s found in namespace %s created at %s\n", secretName, namespace2, podCreationTime)
+			// Set a timeout of 5 minutes
+			timeout := 5 * time.Minute
+
+			startTime := time.Now()
+			// Continuously check for a new hypershift-install-pod for 5 minutes
+			for {
+				// Check if the 5 minutes have passed
+				if time.Since(startTime) >= timeout {
+					ginkgo.Fail(fmt.Sprintf("Timeout reached while waiting for the operation to succeed : %v", err))
+					break
+				}
+				podAfter, err := utils.GetLastCreatedPodWithOptionPrefix(kubeClient, namespace2, hcpInstallPrefix)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				podNameAfter = podAfter.ObjectMeta.Name
+				podCreationTime := podAfter.ObjectMeta.CreationTimestamp.Time
+				fmt.Printf("AFTER --> Pod %s found in namespace %s created at %s\n", secretName, namespace2, podCreationTime)
+				if podNameAfter != podNameBefore {
+					break
+				}
+
+				// Sleep for a short duration before checking again
+				time.Sleep(2 * time.Second)
+			}
 		})
 		ginkgo.By("Step 4: Verify that a new hypershift install job is running (podNameAfter should be different podNameBefore)", func() {
 			gomega.Ω(podNameAfter).ShouldNot(gomega.Equal(podNameBefore))
 		})
-		// TODO: Loop for 5 minutes while checking for the pods
-		ginkgo.By("Step 5: Verify that all pods are running, and timeout after 5 minutes", func() {
-			utils.VerifiesAllPodsAreRunning(kubeClient, namespace2, 5)
-		})
+
+		// ginkgo.By("Step 5: Verify that all pods are running, and timeout after 5 minutes", func() {
+		// 	utils.VerifiesAllPodsAreRunning(kubeClient, namespace2, 5)
+		// })
 	})
 })

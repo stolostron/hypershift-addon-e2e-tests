@@ -486,3 +486,21 @@ func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace st
 	}
 	return latestPod, nil
 }
+
+func WaitForSuccess(operation func() error, timeoutInSeconds time.Duration) error {
+	startTime := time.Now()
+
+	for {
+		err := operation()
+		if err == nil {
+			return nil // Operation succeeded
+		}
+
+		if time.Since(startTime) >= timeoutInSeconds {
+			ginkgo.Fail(fmt.Sprintf("Timeout reached while waiting for operation to succeed : %v", err))
+			return fmt.Errorf("Timeout reached while waiting for operation to succeed")
+		}
+
+		time.Sleep(time.Second) // Wait for a short duration before retrying
+	}
+}
