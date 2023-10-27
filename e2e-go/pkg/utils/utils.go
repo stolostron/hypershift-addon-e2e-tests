@@ -488,6 +488,7 @@ func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace st
 	if latestPod == nil {
 		return nil, fmt.Errorf("No pods found with prefix %s \n", prefix)
 	}
+	fmt.Printf("latestPod %v \n", latestPod.ObjectMeta.Name)
 	return latestPod, nil
 }
 
