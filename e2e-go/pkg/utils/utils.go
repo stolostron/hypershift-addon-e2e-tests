@@ -470,7 +470,7 @@ func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace st
 
 	for _, pod := range pods.Items {
 		if len(prefix) != 0 {
-			if !strings.Contains(pod.ObjectMeta.Name, prefix) {
+			if !(strings.HasPrefix(pod.ObjectMeta.Name, prefix)) {
 				continue
 			}
 		}
