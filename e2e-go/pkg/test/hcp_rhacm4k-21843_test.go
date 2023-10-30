@@ -27,12 +27,12 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 	// )
 
 	ginkgo.It("Get, modify, and verify the s3 secret", func() {
-		var hcpInstallPrefix = "hypershift-install-job"
+		// var hcpInstallPrefix = "hypershift-install-job"
 		var namespace2 = "open-cluster-management-agent-addon"
 		var podNameBefore string
 
-		ginkgo.By("Step 1: Get the latest hypershift isntall Pod BEFORE updating the secret", func() {
-			podBefore, err := utils.GetLastCreatedPodWithOptionPrefix(kubeClient, namespace2, hcpInstallPrefix)
+		ginkgo.By("Step 1: Get the latest hypershift install Pod BEFORE updating the secret", func() {
+			podBefore, err := utils.GetLastCreatedPodWithOptionPrefix(kubeClient, namespace2, "")
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			podNameBefore = podBefore.ObjectMeta.Name
 			podCreationTime := podBefore.ObjectMeta.CreationTimestamp.Time
