@@ -471,17 +471,18 @@ func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace st
 	for _, pod := range pods.Items {
 		if len(prefix) != 0 {
 			podName := pod.ObjectMeta.Name
-			fmt.Printf("podName: %v \n", podName)
 			if !strings.HasPrefix(pod.ObjectMeta.Name, prefix) {
 				fmt.Printf("Skipping podName: %v \n", podName)
 				continue
 			}
 		}
-		fmt.Printf("podName with prefix found: %v \n", pod.ObjectMeta.Name)
 		creationTime := pod.ObjectMeta.CreationTimestamp.Time
+		fmt.Printf("podName with prefix found: %v created at %v \n", pod.ObjectMeta.Name, creationTime)
 		if creationTime.After(latestTime) {
+			fmt.Printf("latestTime = %v creationTime = %v latestPos = %v \n", latestTime, creationTime, latestPod)
 			latestTime = creationTime
 			latestPod = &pod
+			fmt.Printf("latestPod %v \n", latestPod)
 		}
 	}
 
