@@ -465,23 +465,20 @@ func GetLastCreatedPod(client kubernetes.Interface, namespace string) (*corev1.P
 	}
 
 	// Find the latest creation time
-	var latestTime time.Time
 	var latestPod *corev1.Pod
+	latestTimestamp := metav1.Time{}
 
 	for _, pod := range pods.Items {
-		creationTime := pod.ObjectMeta.CreationTimestamp.Time
-		if creationTime.After(latestTime) {
-			fmt.Printf("latestTime = %v creationTime = %v latestPos = %v \n", latestTime, creationTime, latestPod)
-			latestTime = creationTime
+		if pod.ObjectMeta.CreationTimestamp.After(latestTimestamp.Time) {
+			latestTimestamp = pod.ObjectMeta.CreationTimestamp
 			latestPod = &pod
-			fmt.Printf("latestPod %v \n", latestPod)
 		}
 	}
 
 	if latestPod == nil {
 		return nil, fmt.Errorf("No pods found")
 	}
-	fmt.Printf("latestPod %v \n", latestPod.ObjectMeta.Name)
+	fmt.Printf("latestPod %v created at %v\n", latestPod.ObjectMeta.Name, latestTimestamp)
 	return latestPod, nil
 }
 

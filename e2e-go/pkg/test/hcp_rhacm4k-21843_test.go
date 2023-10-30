@@ -41,7 +41,6 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 			utils.UpdateSecret(context.TODO(), kubeClient, namespace, secretName, keyToFind, newKey, newValue)
 		})
 		ginkgo.By("Step 3: Get the latest hypershift isntall Pod AFTER updating the secret", func() {
-			fmt.Printf("BEFORE --> Pod %s found in namespace %s \n", podNameBefore, namespace2)
 			// Set a timeout of 5 minutes
 			timeout := 5 * time.Minute
 
