@@ -24,27 +24,20 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 		newValue         = "12312132123===="
 		podNameBefore    string
 		podNameAfter     string
-		originalSecret   *corev1.Secret
 	)
 
 	ginkgo.It("Get, modify, and verify the s3 secret", func() {
-		ginkgo.By("Step 1: Get the original secret amd make sure it exists", func() {
-			originalSecret, err := utils.GetSecretInNamespace(kubeClient, namespace, secretName)
-			gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get secret")
-			gomega.Expect(originalSecret).NotTo(gomega.BeNil(), "Secret not found")
-			gomega.Expect(originalSecret.Data).NotTo(gomega.BeEmpty(), "Secret data is empty")
-		})
-		ginkgo.By("Step 2: Get the latest hypershift install Pod BEFORE updating the secret", func() {
+		ginkgo.By("Step 1: Get the latest hypershift install Pod BEFORE updating the secret", func() {
 			podBefore, err := utils.GetLatestCreatedPod(kubeClient, namespace2)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			podNameBefore = podBefore.ObjectMeta.Name
 			podCreationTime := podBefore.ObjectMeta.CreationTimestamp.Time
 			fmt.Printf("BEFORE --> Pod %s found in namespace %s created at %s \n", podNameBefore, namespace2, podCreationTime)
 		})
-		ginkgo.By("Step 3: Update the s3 secret by injecting a new key to it", func() {
+		ginkgo.By("Step 2: Update the s3 secret by injecting a new key to it", func() {
 			utils.UpdateSecret(context.TODO(), kubeClient, namespace, secretName, keyToFind, newKey, newValue)
 		})
-		ginkgo.By("Step 4: Get the latest hypershift isntall Pod AFTER updating the secret", func() {
+		ginkgo.By("Step 3: Get the latest hypershift isntall Pod AFTER updating the secret", func() {
 			// Set a timeout of 5 minutes
 			timeout := 5 * time.Minute
 			startTime := time.Now()
@@ -69,12 +62,19 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 				time.Sleep(2 * time.Second)
 			}
 		})
-		ginkgo.By("Step 5: Verify that a new hypershift install job is running (podNameAfter should be different podNameBefore)", func() {
+		ginkgo.By("Step 4: Verify that a new hypershift install job is running (podNameAfter should be different podNameBefore)", func() {
 			fmt.Printf(" %s != %s \n", podNameAfter, podNameBefore)
 			gomega.Ω(podNameAfter).ShouldNot(gomega.Equal(podNameBefore))
 		})
-		ginkgo.By("Step 6: Rollback the secret to its original value)", func() {
-			_, err = kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), originalSecret, metav1.UpdateOptions{})
+		ginkgo.By("Step 5: Rollback the secret to its original value)", func() {
+			secret, err := utils.GetSecretInNamespace(kubeClient, namespace, secretName)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get secret")
+			gomega.Expect(secret).NotTo(gomega.BeNil(), "Secret not found")
+			gomega.Expect(secret.Data).NotTo(gomega.BeEmpty(), "Secret data is empty")
+
+			// Remove the new key-value pair we've added in Step 3
+	        delete(secret.Data, newKey)
+			_, err = kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		})
 	})
