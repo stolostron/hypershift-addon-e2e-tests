@@ -9,7 +9,6 @@ import (
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -73,7 +72,7 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 			gomega.Expect(secret.Data).NotTo(gomega.BeEmpty(), "Secret data is empty")
 
 			// Remove the new key-value pair we've added in Step 3
-	        delete(secret.Data, newKey)
+			delete(secret.Data, newKey)
 			_, err = kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		})
