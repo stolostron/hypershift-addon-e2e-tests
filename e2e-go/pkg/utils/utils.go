@@ -457,7 +457,7 @@ func GetPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, 
   - This functions takes a namespace and a Pod name prefix as input and retrieves the last created pod with that pefix if it is set.
     Note that prefix could be an empty string if you are looking to get all the pods in the namespace
 */
-func GetLastCreatedPod(client kubernetes.Interface, namespace string) (*corev1.Pod, error) {
+func GetLatestCreatedPod(client kubernetes.Interface, namespace string) (*corev1.Pod, error) {
 	// Get pods with the specified label selector
 	pods, err := GetPodsInNamespace(client, namespace)
 	if err != nil {
@@ -488,7 +488,7 @@ func GetLastCreatedPod(client kubernetes.Interface, namespace string) (*corev1.P
   - This functions takes a namespace and a Pod name prefix as input and retrieves the last created pod with that pefix if it is set.
     Note that prefix could be an empty string if you are looking to get all the pods in the namespace
 */
-func GetLastCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace string, prefix string) (*corev1.Pod, error) {
+func GetLatestCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace string, prefix string) (*corev1.Pod, error) {
 	// Get pods with the specified label selector
 	pods, err := GetPodsInNamespace(client, namespace)
 	if err != nil {
