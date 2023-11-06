@@ -77,16 +77,5 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 			fmt.Printf(" %s != %s \n", podNameAfter, podNameBefore)
 			gomega.Ω(podNameAfter).ShouldNot(gomega.Equal(podNameBefore))
 		})
-		// ginkgo.By("Step 5: Rollback the secret to its original value)", func() {
-		// 	secret, err := utils.GetSecretInNamespace(kubeClient, namespace, secretName)
-		// 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get secret")
-		// 	gomega.Expect(secret).NotTo(gomega.BeNil(), "Secret not found")
-		// 	gomega.Expect(secret.Data).NotTo(gomega.BeEmpty(), "Secret data is empty")
-
-		// 	// Remove the new key-value pair we've added in Step 3
-		// 	delete(secret.Data, newKey)
-		// 	_, err = kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
-		// 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		// })
 	})
 })
