@@ -26,6 +26,7 @@ var _ = ginkgo.Describe("RHACM4K-21843: Hypershift: Hypershift Addon should dete
 	)
 
 	ginkgo.AfterEach(func() {
+		// Restore the secret
 		secret, err := utils.GetSecretInNamespace(kubeClient, namespace, secretName)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get secret")
 		gomega.Expect(secret).NotTo(gomega.BeNil(), "Secret not found")
