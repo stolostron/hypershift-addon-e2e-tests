@@ -12,6 +12,7 @@ import (
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
+	openshiftclientset "github.com/openshift/client-go/config/clientset/versioned"
 	routeclient "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
 	libgocmd "github.com/stolostron/library-e2e-go/pkg/cmd"
@@ -50,6 +51,7 @@ const (
 var (
 	dynamicClient             dynamic.Interface
 	kubeClient                kubernetes.Interface
+	ocpClient                 openshiftclientset.Interface
 	routeClient               routeclient.Interface
 	httpc                     *http.Client
 	clientClient              client.Client
@@ -92,6 +94,10 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	cfg, err := utils.NewKubeConfig()
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	// OCP Client
+	ocpClient, err = utils.NewOCPClient()
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	// route client

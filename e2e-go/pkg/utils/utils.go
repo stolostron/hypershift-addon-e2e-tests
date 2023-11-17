@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
+	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,7 +19,9 @@ import (
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
+	openshiftclientset "github.com/openshift/client-go/config/clientset/versioned"
 	routeclient "github.com/openshift/client-go/route/clientset/versioned"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,6 +99,19 @@ func NewKubeConfig() (*rest.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func NewOCPClient() (openshiftclientset.Interface, error) {
+	kubeConfigFile, err := getKubeConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return openshiftclientset.NewForConfig(cfg)
 }
 
 func NewRouteV1Client() (routeclient.Interface, error) {
@@ -540,4 +558,172 @@ func WaitForSuccess(operation func() error, timeoutInSeconds time.Duration) erro
 
 		time.Sleep(time.Second) // Wait for a short duration before retrying
 	}
+}
+
+/*
+This function is used to check if a specific deployment exists in the list. If found, it prints a message; otherwise, it fails the test.
+*/
+func VerifyDeploymentExistence(deployments *appsv1.DeploymentList, targetDeploymentName string) {
+	for _, deployment := range deployments.Items {
+		if deployment.Name == targetDeploymentName {
+			fmt.Printf("Deployment %s found in the namespace\n", targetDeploymentName)
+			return
+		}
+	}
+	ginkgo.Fail(fmt.Sprintf("Deployment %s not found in the namespace", targetDeploymentName))
+}
+
+/*
+This executeKubernetesCommand executes a Kubernetes / oc command and returns the output and any error encountered.
+  - commandType: kubectl, oc, etc..
+  - args: The arguments for the command ex: "get", "pods", "-o", "json"
+*/
+func ExecuteKubernetesCommand(commandType string, args ...string) (string, error) {
+	// Run the kubectl command to get information
+	cmd := exec.Command(commandType, args...)
+	output, err := cmd.CombinedOutput()
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Error running command: %v", err)
+
+	// Convert the output to a string and split it into lines
+	outputStr := string(output)
+
+	return outputStr, nil
+}
+
+/*
+This function takes an interface, a kubernetes command result output and the desired count of objects to create (the number of fields in the struct for example).
+It uses reflection to create a list of objects dynamically, where each object is an instance of the object implementing the provided interface
+It queries the command output lines, get the words from each line and stores them into a list
+It then append the values into the new create instance
+*/
+func ParseKubernetesCommandOutput(resultType interface{}, commandOutputStr string, count int) []interface{} {
+	fmt.Printf("################# %s\n", reflect.ValueOf(resultType).Kind().String())
+	fmt.Printf("################# %s\n", reflect.ValueOf(resultType).Type())
+	// Use reflection to get the type of the provided interface
+	interfaceType := reflect.TypeOf(resultType)
+	//interfaceValue := reflect.ValueOf(resultType)
+
+	// Create a list to store dynamically created objects
+	objects := make([]interface{}, count)
+
+	skipFirst := true
+	// Get the lines in the Output and parse them
+	lines := strings.Split(commandOutputStr, "\n")
+	for _, line := range lines {
+		// Create a new instance of the object with the same type of the interface
+		newInterfaceTypeInstance := reflect.New(interfaceType).Elem()
+
+		// Skip the first line as it has has the column names
+		if skipFirst {
+			skipFirst = false
+			continue
+		}
+		if line != "" {
+			// Use regular expression to find words separated by spaces
+			re := regexp.MustCompile(`\s+`)
+			words := re.Split(line, -1)
+			// Get the list of fields for the provided interface
+			structFieldsList := GenerateFieldsForAStruct(resultType)
+			// Get the clean words from the line and store them in a list
+			var cleanedWords []string
+			var i = 0
+			for _, word := range words {
+				// loop though the words and stores them
+				if word != "" {
+					fmt.Println(word)
+					cleanedWords = append(cleanedWords, strings.TrimSpace(word))
+					// Append the values to the new instance
+					newInterfaceTypeInstance.FieldByName(structFieldsList[i]).SetString(word)
+					i = i + 1
+				}
+			}
+			objects = append(objects, newInterfaceTypeInstance.Interface())
+		}
+	}
+	return objects
+
+}
+
+/*
+This function takes an interface parameter (data), which allows us to pass any struct to it.
+Inside queryStruct, reflection is used to get the type of the struct (structType) and the value of the struct (structValue).
+And then it iterates through the fields of the struct using NumField() and extract the field name and value.
+*/
+
+func QueryStruct(data interface{}) {
+	// Use reflection to get the type of the struct
+	structType := reflect.TypeOf(data)
+
+	// Use reflection to get the value of the struct
+	structValue := reflect.ValueOf(data)
+
+	// Iterate through the fields of the struct
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		fieldValue := structValue.Field(i).Interface()
+
+		// Print the field name and its value
+		fmt.Printf("Field: %s, Value: %v\n", field.Name, fieldValue)
+
+	}
+}
+
+/*
+	  This function takes an instance of a struct (s), and using reflection, it obtains the type information for that struct.
+		It then iterates through the fields of the struct using NumField() and retrieves the field name and its type using Field(i).Name and Field(i).Type.
+		In the end it prints the field name and type for each field
+*/
+func GenerateFieldsForAStruct(s interface{}) []string {
+	var fieldsList []string
+	// Use reflection to get the type of the struct
+	structType := reflect.TypeOf(s)
+
+	// Iterate through the fields of the struct
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		// Print the field name and its type
+		fmt.Printf("Field: %s, Type: %s\n", field.Name, field.Type)
+		fieldsList = append(fieldsList, field.Name)
+	}
+	return fieldsList
+}
+
+/*
+This function loops through the results of a kubectl or oc command, and parses them into a list of lists / structs so that they could be easily queried
+
+  - resultType struct{}: this is the struct type of your results
+    Below could be some good examples:
+    type PodInfo struct {
+    Name     string
+    Ready    bool
+    Status   string
+    Age      string
+    Restarts int32
+    }
+
+    type DeploymentInfo struct {
+    Name     	string
+    Available   bool
+    Degraded    bool
+    }
+
+  - line: The line you would like to parse
+    Below could be some good examples:
+    NAME               AVAILABLE   DEGRADED
+    hypershift-addon   True        False
+*/
+func ExtractWordsFromLine(resultType struct{}, line string) []string {
+	// Use regular expression to find words separated by spaces
+	re := regexp.MustCompile(`\s+`)
+	words := re.Split(line, -1)
+
+	// Remove any empty strings from the result
+	var cleanedWords []string
+	for _, word := range words {
+		if word != "" {
+			fmt.Printf(word)
+			cleanedWords = append(cleanedWords, strings.TrimSpace(word))
+		}
+	}
+	return cleanedWords
 }
