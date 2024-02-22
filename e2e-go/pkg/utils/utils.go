@@ -10,9 +10,11 @@ import (
 	"os/user"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	ginkgo "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	routeclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -244,13 +246,68 @@ func CreateOIDCProviderSecret(ctx context.Context, client kubernetes.Interface, 
 	return err
 }
 
-func GetResourceDecodedSecretValue(client kubernetes.Interface, namespace, secretName, secretKey string, base64Decode bool) (string, error) {
+/*
+- This functions return a specific secret in a namesapce and verfies it exists
+*/
+func GetSecretInNamespace(client kubernetes.Interface, namespace string, secretName string) (*corev1.Secret, error) {
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("Error fetching secret: %v\n", err)
-		return "", err
+		fmt.Printf("Secret %s not found in namespace %s\n", secretName, namespace)
+		return nil, fmt.Errorf("Error getting secret: %v", err)
 	}
 	fmt.Printf("Secret %s found in namespace %s\n", secretName, namespace)
+	return secret, err
+}
+
+/*
+  - This function add a new key pair to an existing secret abd vlidates it got successfully updated
+    1- Get the secret
+    2- Inject a new key pair value to it
+    3- Update the secret
+    4- Get the updated secret
+    5- Verifies if the new secret data was updated with the new key pair
+*/
+func UpdateSecret(ctx context.Context, client kubernetes.Interface, namespace string, secretName string, key string, newKey string, newKeyValue string) error {
+	secret, err := GetSecretInNamespace(client, namespace, secretName)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get secret")
+	gomega.Expect(secret).NotTo(gomega.BeNil(), "Secret not found")
+	gomega.Expect(secret.Data).NotTo(gomega.BeEmpty(), "Secret data is empty")
+
+	// Check if the key exists in the secret
+	if _, exists := secret.Data[key]; !exists {
+		return fmt.Errorf("Key '%s' does not exist in the secret", key)
+	}
+	// Add a new key-value pair right after the existing key
+	updatedData := make(map[string][]byte)
+	for k, v := range secret.Data {
+		updatedData[k] = v
+		if k == key {
+			updatedData[newKey] = []byte(newKeyValue)
+		}
+	}
+	// Update the secret data
+	secret.Data = updatedData
+	_, err = client.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to update secret")
+
+	// Get the updated secret
+	updatedSecret, err := GetSecretInNamespace(client, namespace, secretName)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get updated secret")
+
+	// Add assertions to verify the updated secret data
+	gomega.Expect(updatedSecret.Data[newKey]).To(gomega.Equal([]byte(newKeyValue)))
+
+	return nil
+}
+
+func GetResourceDecodedSecretValue(client kubernetes.Interface, namespace, secretName, secretKey string, base64Decode bool) (string, error) {
+	// secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	// if err != nil {
+	// 	fmt.Printf("Error fetching secret: %v\n", err)
+	// 	return "", err
+	// }
+	// fmt.Printf("Secret %s found in namespace %s\n", secretName, namespace)
+	secret, err := GetSecretInNamespace(client, namespace, secretName)
 
 	encodedValue, exists := secret.Data[secretKey]
 	if !exists {
@@ -297,4 +354,190 @@ func generateErrorMsg(tag, solution, reason, errmsg string) error {
 		"Reason: %v, "+
 		"Error message: %v,",
 		tag, solution, reason, errmsg)
+}
+
+/*
+- This function returns the Pods list in a namespace
+*/
+func GetPodsInNamespace(client kubernetes.Interface, namespace string) (*corev1.PodList, error) {
+	// Get pod list
+	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Error getting pod list: %v \n", err)
+	}
+	return pods, err
+}
+
+/*
+- This function verifies if all pods in a specified namespace are up and running
+*/
+func VerifiesAllPodsAreRunning(client kubernetes.Interface, namespace string, timeoutInMinutes time.Duration) {
+	// Set a timeout of 5 minutes
+	timeout := timeoutInMinutes * time.Minute
+
+	startTime := time.Now()
+
+	// Continuously check pod statuses for 5 minutes
+	for {
+		// Check if 5 minutes have passed
+		if time.Since(startTime) >= timeout {
+			fmt.Println("Timeout reached. Exiting.")
+			break
+		}
+
+		// Get pods in the specified namespace
+		pods, err := GetPodsInNamespace(client, namespace)
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to list pods")
+
+		allRunning := true
+
+		// Verify that all pods are in the "Running" phase
+		for _, pod := range pods.Items {
+			if pod.Status.Phase != corev1.PodRunning {
+				allRunning = false
+				break
+			}
+		}
+
+		if allRunning {
+			fmt.Println("All pods are running.")
+			break
+		}
+
+		// Sleep for a short duration before checking again
+		time.Sleep(2 * time.Second)
+	}
+}
+
+type PodInfo struct {
+	Name     string
+	Ready    bool
+	Status   string
+	Age      string
+	Restarts int32
+}
+
+/*
+- This function returns the list of pods and their info info (Name, Ready, Status, Restarts, Age) in a specific namespace
+
+	type PodInfo struct {
+	Name     string
+	Ready    bool
+	Status   string
+	Age      string
+	Restarts int32
+	}
+*/
+func GetPodsInfoList(client kubernetes.Interface, namespace string) ([]PodInfo, error) {
+	// Get pod list
+	pods, err := GetPodsInNamespace(client, namespace)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to get pods in namespace: "+namespace)
+
+	// Extract pod details
+	var podInfoList []PodInfo
+	for _, pod := range pods.Items {
+		podInfo := PodInfo{
+			Name:     pod.Name,
+			Ready:    pod.Status.ContainerStatuses[0].Ready,
+			Status:   string(pod.Status.Phase),
+			Restarts: pod.Status.ContainerStatuses[0].RestartCount,
+			Age:      time.Since(pod.ObjectMeta.CreationTimestamp.Time).String(),
+		}
+		fmt.Printf("Name: %v \n", pod.Name)
+		fmt.Printf("Ready: %v \n", pod.Status.ContainerStatuses[0].Ready)
+		fmt.Printf("Status: %v \n", string(pod.Status.Phase))
+		fmt.Printf("Restarts: %v \n", pod.Status.ContainerStatuses[0].RestartCount)
+		fmt.Printf("Age: %v\n", time.Since(pod.ObjectMeta.CreationTimestamp.Time).String())
+		podInfoList = append(podInfoList, podInfo)
+	}
+	return podInfoList, nil
+}
+
+/*
+  - This functions takes a namespace and a Pod name prefix as input and retrieves the last created pod with that pefix if it is set.
+    Note that prefix could be an empty string if you are looking to get all the pods in the namespace
+*/
+func GetLatestCreatedPod(client kubernetes.Interface, namespace string) (*corev1.Pod, error) {
+	// Get pods with the specified label selector
+	pods, err := GetPodsInNamespace(client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting pods: %v \n", err)
+	}
+
+	// Find the latest creation time
+	var latestPodName string
+	latestTimestamp := metav1.Time{}
+	fmt.Printf("latestTimestamp: %v\n", metav1.Time{})
+	for _, pod := range pods.Items {
+		fmt.Printf("Pod: %v\n", pod.ObjectMeta.Name)
+		fmt.Printf("Pod Timestamp: %v\n", pod.ObjectMeta.CreationTimestamp)
+		if pod.ObjectMeta.CreationTimestamp.After(latestTimestamp.Time) {
+			latestTimestamp = pod.ObjectMeta.CreationTimestamp
+			latestPodName = pod.ObjectMeta.Name
+		}
+	}
+	latestPod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), latestPodName, metav1.GetOptions{})
+	if latestPod == nil {
+		return nil, fmt.Errorf("No pods found")
+	}
+	fmt.Printf("latestPod %v created at %v PodName %v \n", latestPod.ObjectMeta.Name, latestTimestamp, latestPodName)
+	return latestPod, nil
+}
+
+/*
+  - This functions takes a namespace and a Pod name prefix as input and retrieves the last created pod with that pefix if it is set.
+    Note that prefix could be an empty string if you are looking to get all the pods in the namespace
+*/
+func GetLatestCreatedPodWithOptionPrefix(client kubernetes.Interface, namespace string, prefix string) (*corev1.Pod, error) {
+	// Get pods with the specified label selector
+	pods, err := GetPodsInNamespace(client, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting pods: %v \n", err)
+	}
+
+	// Find the latest creation time
+	var latestTime time.Time
+	var latestPod *corev1.Pod
+
+	for _, pod := range pods.Items {
+		if len(prefix) != 0 {
+			podName := pod.ObjectMeta.Name
+			if !strings.HasPrefix(pod.ObjectMeta.Name, prefix) {
+				fmt.Printf("Skipping podName: %v \n", podName)
+				continue
+			}
+		}
+		creationTime := pod.ObjectMeta.CreationTimestamp.Time
+		fmt.Printf("podName with prefix found: %v created at %v \n", pod.ObjectMeta.Name, creationTime)
+		if creationTime.After(latestTime) {
+			fmt.Printf("latestTime = %v creationTime = %v latestPos = %v \n", latestTime, creationTime, latestPod)
+			latestTime = creationTime
+			latestPod = &pod
+			fmt.Printf("latestPod %v \n", latestPod)
+		}
+	}
+
+	if latestPod == nil {
+		return nil, fmt.Errorf("No pods found with prefix %s \n", prefix)
+	}
+	fmt.Printf("latestPod %v \n", latestPod.ObjectMeta.Name)
+	return latestPod, nil
+}
+
+func WaitForSuccess(operation func() error, timeoutInSeconds time.Duration) error {
+	startTime := time.Now()
+
+	for {
+		err := operation()
+		if err == nil {
+			return nil // Operation succeeded
+		}
+
+		if time.Since(startTime) >= timeoutInSeconds {
+			ginkgo.Fail(fmt.Sprintf("Timeout reached while waiting for operation to succeed : %v \n", err))
+			return fmt.Errorf("Timeout reached while waiting for operation to succeed")
+		}
+
+		time.Sleep(time.Second) // Wait for a short duration before retrying
+	}
 }
