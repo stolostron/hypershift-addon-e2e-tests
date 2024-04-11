@@ -330,5 +330,5 @@ func GetCuratorEnabled() (string, error) {
 	if os.Getenv("CURATOR_ENABLED") != "" {
 		return os.Getenv("CURATOR_ENABLED"), nil
 	}
-	return "true", nil
+	return "false", nil
 }
