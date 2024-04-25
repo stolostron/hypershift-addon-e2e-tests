@@ -22,6 +22,9 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 
 	g.It("Creates a FIPS AWS Hosted Cluster using --secret-creds", g.Label("create"), func() {
 		startTime := time.Now()
+		// TODO ensure auto-import is enabled
+		// check if it exists:
+		// oc get addondeploymentconfig hypershift-addon-deploy-config -n mce -ojson | jq '.spec.ports | map(.name == "autoImportDisabled") | index(true)'
 
 		commandArgs := []string{
 			"create", "cluster", TYPE_AWS,
@@ -32,9 +35,13 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 			"--namespace", config.Namespace,
 			"--instance-type", config.InstanceType,
 			"--release-image", config.ReleaseImage,
-			"--fips",
-			"--generate-ssh",
 		}
+
+		if fipsEnabled == "true" {
+			commandArgs = append(commandArgs, "--fips")
+		}
+
+		commandArgs = append(commandArgs, "--generate-ssh")
 
 		if curatorEnabled == "true" {
 			fmt.Println("CURATOR ENABLED, SETTING PAUSEDUNTIL TO TRUE")
@@ -50,6 +57,10 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 		defer gexec.KillAndWait()
 
 		if curatorEnabled == "true" {
+			// TODO: FAIL test if operator is not in good state or not installed -> suite level?
+			// TODO: customize ansible template to choose which playbooks to target. maybe later...
+			// TODO: awx: remove & upload expected templates to tower
+			// Create/Update the aap tower secret -> suite level?
 			fmt.Println("Creating Ansible Tower secret...")
 			o.Expect(utils.CreateOrUpdateAnsibleTowerSecret(clientClient, "aap-tower-cred", config.Namespace, "", "")).Should(o.BeNil())
 
@@ -60,6 +71,7 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 		}
 
 		if curatorEnabled == "true" {
+			// TODO - Check all curator pods are not in error in the HC namespace
 			g.By(fmt.Sprintf("Waiting AnsibleJob for prehook-ansiblejob to complete for the cluster %s", config.ClusterName), func() {
 				o.Eventually(func() bool {
 					ansibleJob, err := utils.GetCurrentAnsibleJob(dynamicClient, config.ClusterName, config.Namespace)
@@ -151,6 +163,8 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 					managedClusterLabels["vendor"] == "OpenShift"
 			}, eventuallyTimeoutShort).Should(o.BeTrue())
 		})
+		// TODO Set fips=true label on the ManagedCluster, or just check the HC later
+		// TODO check hostedcluster has fips: true
 
 		g.By(fmt.Sprintf("Checking if managed cluster %s has the correct annotations", config.ClusterName), func() {
 			o.Eventually(func() bool {

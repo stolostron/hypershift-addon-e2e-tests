@@ -53,24 +53,9 @@ cleanup() {
 # Delete all aws credentials in the current directory on any exit
 trap cleanup EXIT
 
-if [ -z ${HOSTING_CLUSTER+x} ]; then
-  echo "WARN: HOSTING_CLUSTER is not defined, defaulting to local-cluster"
-  HOSTING_CLUSTER="local-cluster"
-fi
-
-if [ -z ${HOSTED_CLUSTER_NS+x} ]; then
-  echo "WARN: HOSTED_CLUSTER_NS is not defined, defaulting to clusters"
-  HOSTED_CLUSTER_NS="clusters"
-fi
-
 if [ -z ${HCP_REGION+x} ]; then
   echo "WARN: HCP_REGION is not defined, defaulting to us-east-1"
   HCP_REGION="us-east-1"
-fi
-
-if [ -z ${HCP_NODE_POOL_REPLICAS+x} ]; then
-  echo "WARN: HCP_NODE_POOL_REPLICAS is not defined, defaulting to 2"
-  HCP_REGION="2"
 fi
 
 if [ -z ${SECRET_AWS_CRED_NAME+x} ]; then
@@ -88,11 +73,6 @@ if [ -z ${S3_BUCKET_NAME+x} ]; then
   exit 1
 fi
 
-if [ -z ${EXT_DNS_DOMAIN+x} ]; then
-  echo "WARN: EXT_DNS_DOMAIN is not defined, defaulting external dns name to acmqe-hs.qe.red-chesterfield.com"
-  EXT_DNS_DOMAIN="acmqe-hs.qe.red-chesterfield.com"
-fi
-
 if [ -z ${AWS_ACCESS_KEY_ID+x} ]; then
   echo "ERROR: AWS_ACCESS_KEY_ID is not defined"
   exit 1
@@ -104,14 +84,13 @@ if [ -z ${AWS_SECRET_ACCESS_KEY+x} ]; then
 fi
 
 if [ -z ${PULL_SECRET+x} ]; then
-  echo "WARN: PULL_SECRET is not defined, defaulting to the one that exists on the MCE/ACM hub via:"
-  PULL_SECRET=$(oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d)
+  echo "ERROR: PULL_SECRET is not defined"
+  exit 1
 fi
 
-if [ -z ${JUNIT_REPORT_FILE+x} ]; then
-  echo "WARN: JUNIT_REPORT_FILE is not defined, defaulting to ./results/result.xml"
-  JUNIT_REPORT_FILE="./results/result.xml"
-fi
+# set default instance type for aws
+# HCP_AWS_INSTANCE_TYPE=m6g.large
+# HCP_AWS_ARCH=arm64
 
 cleanup # clean up tmp files first
 mkdir ./.aws/
@@ -219,27 +198,3 @@ echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is 
 oc wait secret/"${SECRET_AWS_CRED_NAME}" -n "${HOSTED_CLUSTER_NS}" --for=jsonpath='{.metadata.name}'="${SECRET_AWS_CRED_NAME}" --timeout=${TIMEOUT}
 echo "$(date) S3 Bucket secret created and hosting cluster configured!"
 echo
-
-# Wait for hypershift-addon to be available
-echo "$(date) Waiting for hypershift-addon..."
-FOUND=1
-SECONDS=0
-while [ ${FOUND} -eq 1 ]; do
-  # Wait up to 10min
-  if [ ${SECONDS} -gt 600 ]; then
-    echo "Timeout waiting for hypershift-addon to be available."
-    echo "List of current pods:"
-    oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o yaml
-    exit 1
-  fi
-
-  addonAvailable=$(oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
-  addonDegraded=$(oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o jsonpath='{.status.conditions[?(@.type=="Degraded")].status}')
-
-  if [[ ("$addonAvailable" == "True") && ("$addonDegraded" == "False") ]]; then
-    echo "Hypershift addon is available"
-    break
-  fi
-  sleep 10
-  ((SECONDS = SECONDS + 10))
-done

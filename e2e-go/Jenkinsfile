@@ -15,25 +15,25 @@ pipeline {
         string(name: 'OCP_HUB_CLUSTER_USER', defaultValue: 'kubeadmin', description: 'OCP Hub User Name')
         string(name: 'OCP_HUB_CLUSTER_PASSWORD', defaultValue: '', description: 'OCP Hub Password')
         string(name: 'OCP_HUB_CLUSTER_API_URL', defaultValue: '', description: 'OCP Hub API URL')
-        string(name: 'HCP_OCP_IMAGE_VERSION', defaultValue: '4.14.0-ec.4-multi', description: 'provide ocp image version and arch used to provision')
+        string(name: 'HCP_OCP_IMAGE_VERSION', defaultValue: '4.15.5-multi', description: 'provide ocp image version and arch used to provision')
         string(name: 'HCP_OCP_IMAGE_REGISTRY', defaultValue: 'quay.io/openshift-release-dev/ocp-release', description: 'provide ocp image registry used to provision')
         
         string(name: 'HCP_CLUSTER_NAME', defaultValue: '', description: 'hosted cluster name to target, not needed for creation')
-        string(name: 'HCP_NAMESPACE', defaultValue: 'local-cluster', description: 'namespace for the hcp')
-        string(name: 'HCP_REGION', defaultValue: '4.14.0-ec.4-multi', description: 'region for the hcp creation')
-        string(name: 'HCP_NODE_POOL_REPLICAS', defaultValue: '3', description: 'number of node replicas for hcp creation')
+        string(name: 'HCP_NAMESPACE', defaultValue: 'clusters', description: 'namespace for the hosted cluster')
+        string(name: 'HCP_REGION', defaultValue: 'us-east-1', description: 'region for the hcp creation')
+        string(name: 'HCP_NODE_POOL_REPLICAS', defaultValue: '2', description: 'number of node replicas for hcp creation')
         string(name: 'HCP_INSTANCE_TYPE', defaultValue: 'm6a.xlarge', description: 'instance type for the hcp creation')
-        string(name: 'HCP_BASE_DOMAIN_NAME', defaultValue: 'dev09.red-chesterfield.com', description: 'provide ocp image version and arch used to provision')
+        string(name: 'HCP_BASE_DOMAIN_NAME', defaultValue: 'dev09.red-chesterfield.com', description: 'HCP base domain name')
         
         string(name: 'TEST_TAGS', defaultValue: '', description: 'label tags to run the test with')
-        choice(name: 'TEST_STAGE', choices: ['create','destroy'], description: 'The test stage of tests, the supported stage is create,destroy')
-        string(name: 'CLOUD_PROVIDERS', defaultValue: 'aws', description: 'Select clusters to create, the supported value is aws only')
+        choice(name: 'TEST_STAGE', choices: ['create','destroy','e2e'], description: 'The test stage of tests, the supported stage is create,destroy,e2e)'
+        string(name: 'CLOUD_PROVIDERS', choices: ['aws','kubevirt'], description: 'Select clusters to create, the supported value is aws,kubevirt')
     }
     environment {
         CI = 'true'
         SCRIPT_DIR = "${WORKSPACE}/hypershift/scripts"
-        AWS_CREDS_FILE = credentials ('dhu-aws-creds-file')
-        PULL_SECRET_FILE = credentials ('dhu-ocp-pull-secret')
+        //AWS_ACCESS_KEY_ID = credentials ('CLC_AWS_ACCESS_KEY_ID')
+        //AWS_SECRET_ACCESS_KEY = credentials ('CLC_AWS_SECRET_ACCESS_KEY')
     }
     stages {
         // hubs
@@ -48,9 +48,6 @@ pipeline {
         //     }
         // } 
         stage('Build') {
-            // Setup the build environment
-            // Ensure hypershift cli is installed and available
-            // run setup script
             steps {
                 script {
                     sh """
@@ -114,9 +111,6 @@ pipeline {
                             export HCP_BASE_DOMAIN_NAME="${params.HCP_BASE_DOMAIN_NAME}"
                             export HCP_RELEASE_IMAGE="${params.HCP_RELEASE_IMAGE}"
                             export HCP_INSTANCE_TYPE="${params.HCP_INSTANCE_TYPE}"
-                            
-                            export AWS_CREDS=~/aws/aws
-                            export PULL_SECRET_FILE=~/pull-secret.txt
 
                             cat $OPTIONS_FILE > options.yaml
                             chmod 777 options.yaml

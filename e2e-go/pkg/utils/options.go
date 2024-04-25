@@ -190,12 +190,12 @@ func GetClusterName(provider string) (string, error) {
 	}
 }
 
-// GetNamespace returns the namespace set in the env variable HCP_NAMESPACE or defaults to "hcp-ns"
+// GetNamespace returns the namespace set in the env variable HCP_NAMESPACE or defaults to "clusters"
 func GetNamespace(provider string) (string, error) {
 	if os.Getenv("HCP_NAMESPACE") != "" {
 		return os.Getenv("HCP_NAMESPACE"), nil
 	}
-	return "hcp-ns", nil
+	return "clusters", nil
 }
 
 // GetRegion returns the region for the supported cloud providers
@@ -295,8 +295,8 @@ func GetAWSCreds() (string, error) {
 
 // GetPullSecret returns the cluster image used to provision the cluster
 func GetPullSecret() (string, error) {
-	if os.Getenv("PULL_SECRET_FILE") != "" {
-		return os.Getenv("PULL_SECRET_FILE"), nil
+	if os.Getenv("PULL_SECRET") != "" {
+		return os.Getenv("PULL_SECRET"), nil
 	}
 	return TestOptions.Options.CloudConnection.Secrets.PullSecret, nil
 }
@@ -305,8 +305,10 @@ func GetPullSecret() (string, error) {
 func GetAWSSecretCreds() (string, error) {
 	if os.Getenv("SECRET_AWS_CRED_NAME") != "" {
 		return os.Getenv("SECRET_AWS_CRED_NAME"), nil
+	} else if TestOptions.Options.CloudConnection.APIKeys.AWSCredsName != "" {
+		return TestOptions.Options.CloudConnection.APIKeys.AWSCredsName, nil
 	}
-	return TestOptions.Options.CloudConnection.APIKeys.AWSCredsName, nil
+	return "qe-hs-aws-secret", nil
 }
 
 // GetTowerHost returns the AAP Tower Host used for cluster curator auth
@@ -331,4 +333,27 @@ func GetCuratorEnabled() (string, error) {
 		return os.Getenv("CURATOR_ENABLED"), nil
 	}
 	return "false", nil
+}
+
+// GetFIPSEnabled returns if we want to enable FIPS in cluster creation
+func GetFIPSEnabled() (string, error) {
+	if os.Getenv("FIPS_ENABLED") != "" {
+		return os.Getenv("FIPS_ENABLED"), nil
+	}
+	return "true", nil
+}
+
+// GetNamespace returns the namespace set in the env variable HCP_NAMESPACE or defaults to "clusters"
+func GetKVMem() (string, error) {
+	if os.Getenv("HCP_MEMORY") != "" {
+		return os.Getenv("HCP_MEMORY"), nil
+	}
+	return "10Gi", nil
+}
+
+func GetKVCPUCores() (string, error) {
+	if os.Getenv("HCP_CPU_CORES") != "" {
+		return os.Getenv("HCP_CPU_CORES"), nil
+	}
+	return "2", nil
 }
