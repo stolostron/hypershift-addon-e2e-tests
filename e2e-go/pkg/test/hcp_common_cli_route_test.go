@@ -62,7 +62,7 @@ func checkConsoleCLIDownloadLink(links []interface{}, osArch string) error {
 	return nil
 }
 
-var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("e2e", "CLI-Links", TYPE_AWS), func() {
+var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("@e2e", "CLI-Links", TYPE_AWS), func() {
 	// TODO not need if we can get the route from the console cli download CR
 	// ginkgo.Context("irrespective of whether the console is enabled or not", func() {
 	// 	// TODO: route is good for each OS/arch

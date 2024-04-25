@@ -3,6 +3,7 @@ package hypershift_test
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	g "github.com/onsi/ginkgo/v2"
@@ -14,9 +15,6 @@ import (
 var _ = g.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", g.Label(TYPE_KUBEVIRT), func() {
 
 	g.BeforeEach(func() {
-		// TODO set prefix for cluster name
-		// TODO allow flag to set static cluster name
-
 		// Before each test, generate a unique cluster name to create the hosted cluster with
 		config.ClusterName, err = utils.GenerateClusterName("acmqe-hc")
 		o.Expect(err).ShouldNot(o.HaveOccurred())
@@ -25,22 +23,22 @@ var _ = g.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", g.Label(TY
 	g.It("Creates a Kubevirt Hosted Cluster", g.Label("create"), func() {
 		startTime := time.Now()
 
+		memory, err := utils.GetKVMem()
+		o.Expect(err).ShouldNot(o.HaveOccurred())
+
+		cores, err := utils.GetKVCPUCores()
+		o.Expect(err).ShouldNot(o.HaveOccurred())
+
 		// TODO get pull secret from hub? default, if none provided
 		commandArgs := []string{
-			"create", "cluster", TYPE_KUBEVIRT,
+			"create", "cluster", strings.ToLower(TYPE_KUBEVIRT),
 			"--name", config.ClusterName,
 			"--pull-secret", config.PullSecret,
 		}
 
-		// TODO expose memory option
-		commandArgs = append(commandArgs, "--memory", "6Gi")
-
-		// TODO expose cores option
-		commandArgs = append(commandArgs, "--cores", "2")
-
+		commandArgs = append(commandArgs, "--memory", memory)
+		commandArgs = append(commandArgs, "--cores", cores)
 		commandArgs = append(commandArgs, "--node-pool-replicas", config.NodePoolReplicas)
-
-		// TODO default to clusters if not provided
 		commandArgs = append(commandArgs, "--namespace", config.Namespace)
 
 		// default not provide release image if empty
@@ -49,9 +47,10 @@ var _ = g.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", g.Label(TY
 		// TODO check if fips enabled requested
 		// TODO label cluster with fips=true for easy searching
 		// TODO check nodes if fips is good
-		commandArgs = append(commandArgs, "--fips")
+		if fipsEnabled == "true" {
+			commandArgs = append(commandArgs, "--fips")
+		}
 
-		// TODO expose ssh keys
 		commandArgs = append(commandArgs, "--generate-ssh")
 
 		if curatorEnabled == "true" {
@@ -126,17 +125,16 @@ var _ = g.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", g.Label(TY
 				fmt.Printf("Time taken for the hypershift-provisioning-job to complete: %s\n", time.Since(startTime).String())
 			})
 
-			g.By(fmt.Sprintf("Waiting AnsibleJob for posthook-ansiblejob to complete for the cluster %s", config.ClusterName), func() {
+			g.By(fmt.Sprintf("Waiting AnsibleJob for prehook-ansiblejob to complete for the cluster %s", config.ClusterName), func() {
 				o.Eventually(func() bool {
 					ansibleJob, err := utils.GetCurrentAnsibleJob(dynamicClient, config.ClusterName, config.Namespace)
-					o.Expect(err).ShouldNot(o.HaveOccurred())
-					o.Expect(ansibleJob).ShouldNot(o.BeNil())
-					fmt.Printf("AnsibleJob for Cluster / Curator %s: %#v\n", config.ClusterName, ansibleJob.Object)
-
+					if ansibleJob == nil || err != nil {
+						return false
+					}
 					isFinished := ansibleJob.Object["status"].(map[string]interface{})["isFinished"]
 					hookVar := ansibleJob.Object["spec"].(map[string]interface{})["extra_vars"].(map[string]interface{})["hook"]
 
-					fmt.Printf("AnsibleJob for Cluster / Curator fields %s: %#v\n", config.ClusterName, isFinished)
+					fmt.Printf("AnsibleJob isFinished field for the cluster %s: %#v\n", config.ClusterName, isFinished)
 					return isFinished != nil && isFinished.(bool) == true &&
 						hookVar != nil && hookVar.(string) == "post"
 				}, eventuallyTimeout, eventuallyInterval).Should(o.BeTrue())
@@ -181,7 +179,6 @@ var _ = g.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", g.Label(TY
 					managedClusterLabels["cloud"] == "Other" &&
 					managedClusterLabels["cluster.open-cluster-management.io/clusterset"] == "default" &&
 					managedClusterLabels["vendor"] == "OpenShift"
-				// TODO check ocp versio, maybe use managedclusterinfos CR e.g. openshiftVersion: 4.14.0-ec.4
 			}, eventuallyTimeoutShort).Should(o.BeTrue())
 		})
 

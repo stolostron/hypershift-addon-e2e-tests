@@ -43,8 +43,8 @@ const (
 	eventuallyTimeout      = 30 * time.Minute
 	eventuallyTimeoutShort = 10 * time.Minute
 	eventuallyInterval     = 5 * time.Second
-	TYPE_AWS               = "aws"
-	TYPE_KUBEVIRT          = "kubevirt"
+	TYPE_AWS               = "AWS"
+	TYPE_KUBEVIRT          = "KubeVirt"
 )
 
 var (
@@ -62,6 +62,7 @@ var (
 	err                       error
 	hcpCliConsoleDownloadSpec map[string]interface{}
 	curatorEnabled            string
+	fipsEnabled               string
 )
 
 func TestE2e(t *testing.T) {
@@ -142,8 +143,6 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 		gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	}
 
-	//TODO ensure external-dns secret exists, external-dns deployment should be initialized from its creation
-
 	ginkgo.By("Check if the hypershift operator is healthy by checking both operator and external-dns deployments")
 	gomega.Eventually(func() error {
 		return utils.IsHypershiftOperatorHealthy(kubeClient)
@@ -209,15 +208,14 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	config.AWSCreds, err = utils.GetAWSCreds()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
-	// GetExternalDNS
-	config.ExternalDNS, err = utils.GetResourceDecodedSecretValue(kubeClient, utils.LocalClusterName, utils.ExternalDNSSecretName, "domain-filter", false)
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 	// GetSecretCreds
 	config.SecretCredsName, err = utils.GetAWSSecretCreds()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	curatorEnabled, err = utils.GetCuratorEnabled()
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+	fipsEnabled, err = utils.GetFIPSEnabled()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 }, func() {})
 

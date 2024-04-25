@@ -15,16 +15,11 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 	var config Config
 
 	ginkgo.BeforeEach(func() {
-		// GetNamespace with error handling
-		namespace, err := utils.GetNamespace(TYPE_AWS)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-		config.Namespace = namespace // TODO allow empty or default clusters ns
-
 		config.SecretCredsName, err = utils.GetAWSSecretCreds()
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 
-	ginkgo.It("Destroy all AWS hosted clusters on the hub", ginkgo.Label("destroy-all", "all"), func() {
+	ginkgo.It("Destroy all AWS hosted clusters on the hub", ginkgo.Label("destroy"), func() {
 		startTime := time.Now()
 
 		hostedClusterList, err := utils.GetHostedClustersList(dynamicClient, TYPE_AWS, "")
@@ -38,22 +33,26 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		// Run destroy command on all AWS hosted clusters without waiting to verify at first
 		for _, hostedCluster := range hostedClusterList {
 			commandArgs := []string{
-				"destroy", "cluster", TYPE_AWS,
+				"destroy", "cluster", TYPE_AWS, // type must be in lowercase?
 				"--name", hostedCluster.GetName(),
-				"--secret-creds", config.SecretCredsName,
 				"--namespace", hostedCluster.GetNamespace(),
+				"--secret-creds", config.SecretCredsName,
 				"--destroy-cloud-resources",
 			}
 
+			fmt.Println(commandArgs)
+
 			cmd := exec.Command(utils.HypershiftCLIName, commandArgs...)
 			session, err := gexec.Start(cmd, ginkgo.GinkgoWriter, ginkgo.GinkgoWriter)
-			defer gexec.KillAndWait()
+
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			gomega.Eventually(session, eventuallyTimeout, eventuallyInterval).Should(gexec.Exit(0))
 			utils.PrintOutput(session) // prints command, args and output
+
+			defer gexec.KillAndWait()
 		}
 
-		// Now we can verify each hosted cluster has sucecssfully been cleaned up
+		// Verify each hosted cluster has sucecssfully been cleaned up
 		for _, hostedCluster := range hostedClusterList {
 			ginkgo.By(fmt.Sprintf("Waiting for hosted cluster %s to be removed", hostedCluster.GetName()), func() {
 				utils.WaitForHostedClusterDestroyed(dynamicClient, hostedCluster.GetName())
@@ -68,10 +67,15 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		fmt.Println("========================= End Test Destroy Hosted Clusters ===============================")
 	})
 
-	ginkgo.It("Destroy a AWS hosted cluster on the hub", ginkgo.Label("destroy", "single"), func() {
+	ginkgo.It("Destroy a AWS hosted cluster on the hub", ginkgo.Label("destroy-one"), func() {
 		startTime := time.Now()
 
+		// HCP_CLUSTER_NAME should be set for this
 		config.ClusterName, err = utils.GetClusterName("")
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		// HCP_NAMESPACE should be set for this
+		config.Namespace, err = utils.GetNamespace(TYPE_AWS)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		if config.ClusterName == "" {
@@ -79,7 +83,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		}
 
 		commandArgs := []string{
-			"destroy", "cluster", TYPE_AWS,
+			"destroy", "cluster", TYPE_AWS, // must be lowercase
 			"--name", config.ClusterName,
 			"--secret-creds", config.SecretCredsName,
 			"--namespace", config.Namespace,

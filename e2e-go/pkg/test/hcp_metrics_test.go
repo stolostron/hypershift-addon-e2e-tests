@@ -187,6 +187,40 @@ var _ = g.Describe("Hypershift Add-on Promethesus/Metrics Tests:", g.Label("metr
 		fmt.Printf("Test Duration: %s\n", time.Since(startTime).String())
 		fmt.Println("========================= End Test Hosted Clusters Metrics ===============================")
 	})
+
+	g.It("Hypershift: RHACM4K-39627:  As a cluster admin, I can retrieve/observe Prometheus metrics for the capacity", g.Label("metrics", "capacity", "sanity"), func() {
+		startTime := time.Now()
+		fmt.Println("========================= Start Test Hypershift add-on health metrics ===============================")
+
+		mce_hs_addon_request_based_hcp_capacity_gauge := promQueryVector(
+			context.Background(), "mce_hs_addon_request_based_hcp_capacity_gauge", time.Now())
+		fmt.Println("mce_hs_addon_request_based_hcp_capacity_gauge: ", mce_hs_addon_request_based_hcp_capacity_gauge[0])
+		o.Expect(mce_hs_addon_request_based_hcp_capacity_gauge[0].Value).Should(o.BeNumerically(">", 0))
+
+		mce_hs_addon_low_qps_based_hcp_capacity_gauge := promQueryVector(
+			context.Background(), "mce_hs_addon_low_qps_based_hcp_capacity_gauge", time.Now())
+		fmt.Println("mce_hs_addon_low_qps_based_hcp_capacity_gauge: ", mce_hs_addon_low_qps_based_hcp_capacity_gauge[0])
+		o.Expect(mce_hs_addon_low_qps_based_hcp_capacity_gauge[0].Value).Should(o.BeNumerically(">", 0))
+
+		mce_hs_addon_medium_qps_based_hcp_capacity_gauge := promQueryVector(
+			context.Background(), "mce_hs_addon_medium_qps_based_hcp_capacity_gauge", time.Now())
+		fmt.Println("mce_hs_addon_medium_qps_based_hcp_capacity_gauge: ", mce_hs_addon_medium_qps_based_hcp_capacity_gauge[0])
+		o.Expect(mce_hs_addon_medium_qps_based_hcp_capacity_gauge[0].Value).Should(o.BeNumerically(">", 0))
+
+		mce_hs_addon_high_qps_based_hcp_capacity_gauge := promQueryVector(
+			context.Background(), "mce_hs_addon_high_qps_based_hcp_capacity_gauge", time.Now())
+		fmt.Println("mce_hs_addon_high_qps_based_hcp_capacity_gauge: ", mce_hs_addon_high_qps_based_hcp_capacity_gauge[0])
+		o.Expect(mce_hs_addon_high_qps_based_hcp_capacity_gauge[0].Value).Should(o.BeNumerically(">", 0))
+
+		mce_hs_addon_average_qps_based_hcp_capacity_gauge := promQueryVector(
+			context.Background(), "mce_hs_addon_average_qps_based_hcp_capacity_gauge", time.Now())
+		fmt.Println("mce_hs_addon_average_qps_based_hcp_capacity_gauge: ", mce_hs_addon_average_qps_based_hcp_capacity_gauge[0])
+		// should be more than 0
+		o.Expect(mce_hs_addon_average_qps_based_hcp_capacity_gauge[0].Value).Should(o.BeNumerically(">", 0))
+
+		fmt.Printf("Test Duration: %s\n", time.Since(startTime).String())
+		fmt.Println("========================= Start Test Hypershift add-on health metrics ===============================")
+	})
 })
 
 // TODO metrics hosted

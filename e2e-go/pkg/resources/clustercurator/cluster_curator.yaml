@@ -12,9 +12,21 @@ spec:
         platform: {{ .ClusterPlatform }}
         hook: post
         stage: destroy
+      name: Demo Workflow Template
+      type: Workflow
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: post
+        stage: destroy
       name: Auto_CLC_Sample_Template
       type: Job
     prehook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: pre
+        stage: destroy
+      name: Demo Workflow Template
+      type: Workflow
     - extra_vars:
         platform: {{ .ClusterPlatform }}
         hook: pre
@@ -29,9 +41,21 @@ spec:
         platform: {{ .ClusterPlatform }}
         hook: post
         stage: install
+      name: Demo Workflow Template
+      type: Workflow
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: post
+        stage: install
       name: Auto_CLC_Sample_Template
       type: Job
     prehook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: pre
+        stage: install
+      name: Demo Workflow Template
+      type: Workflow
     - extra_vars:
         platform: {{ .ClusterPlatform }}
         hook: pre
@@ -48,9 +72,21 @@ spec:
         platform: {{ .ClusterPlatform }}
         hook: post
         stage: upgrade
+      name: Demo Workflow Template
+      type: Workflow
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: post
+        stage: upgrade
       name: Auto_CLC_Sample_Template
       type: Job
     prehook:
+    - extra_vars:
+        platform: {{ .ClusterPlatform }}
+        hook: pre
+        stage: upgrade
+      name: Demo Workflow Template
+      type: Workflow
     - extra_vars:
         platform: {{ .ClusterPlatform }}
         hook: post
