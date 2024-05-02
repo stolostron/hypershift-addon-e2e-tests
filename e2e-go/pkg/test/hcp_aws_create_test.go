@@ -52,9 +52,10 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 		session, err := gexec.Start(cmd, g.GinkgoWriter, g.GinkgoWriter)
 		o.Expect(err).ShouldNot(o.HaveOccurred())
 
+		defer gexec.KillAndWait()
+
 		o.Eventually(session, eventuallyTimeout, eventuallyInterval).Should(gexec.Exit(0))
 		utils.PrintOutput(session) // prints command, args and output
-		defer gexec.KillAndWait()
 
 		if curatorEnabled == "true" {
 			// TODO: FAIL test if operator is not in good state or not installed -> suite level?
