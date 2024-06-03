@@ -28,11 +28,13 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 
 		// if hostedClusterList is empty, skip the test
 		if len(hostedClusterList) == 0 {
-			ginkgo.Skip("No hosted clusters found on the hub")
+			ginkgo.Skip("No AWS hosted clusters found on the hub")
 		}
 
 		// Run destroy command on all AWS hosted clusters without waiting to verify at first
 		for _, hostedCluster := range hostedClusterList {
+			fmt.Printf("AWS Hosted Cluster found: %s\n", hostedCluster.GetName())
+
 			commandArgs := []string{
 				"destroy", "cluster", strings.ToLower(TYPE_AWS),
 				"--name", hostedCluster.GetName(),
