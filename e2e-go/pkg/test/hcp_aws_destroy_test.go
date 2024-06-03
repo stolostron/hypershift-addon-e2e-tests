@@ -3,6 +3,7 @@ package hypershift_test
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	ginkgo "github.com/onsi/ginkgo/v2"
@@ -33,7 +34,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		// Run destroy command on all AWS hosted clusters without waiting to verify at first
 		for _, hostedCluster := range hostedClusterList {
 			commandArgs := []string{
-				"destroy", "cluster", TYPE_AWS, // type must be in lowercase?
+				"destroy", "cluster", strings.ToLower(TYPE_AWS),
 				"--name", hostedCluster.GetName(),
 				"--namespace", hostedCluster.GetNamespace(),
 				"--secret-creds", config.SecretCredsName,
@@ -83,7 +84,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 		}
 
 		commandArgs := []string{
-			"destroy", "cluster", TYPE_AWS, // must be lowercase
+			"destroy", "cluster", strings.ToLower(TYPE_AWS), // must be lowercase
 			"--name", config.ClusterName,
 			"--secret-creds", config.SecretCredsName,
 			"--namespace", config.Namespace,
