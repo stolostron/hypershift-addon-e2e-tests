@@ -24,15 +24,13 @@ var _ = g.Describe("Hosted Control Plane CLI KubeVirt Destroy Tests:", g.Label(T
 
 		// if hostedClusterList is empty, skip the test
 		if len(hostedClusterList) == 0 {
-			g.Skip("No hosted clusters found on the hub")
-		}
-
-		for _, hostedCluster := range hostedClusterList {
-			fmt.Printf("Hosted Cluster found: %s\n", hostedCluster.GetName())
+			g.Skip("No KubeVirt hosted clusters found on the hub")
 		}
 
 		// Run destroy command on all kubevirt hosted clusters without waiting to verify at first
 		for _, hostedCluster := range hostedClusterList {
+			fmt.Printf("KubeVirt Hosted Cluster found: %s\n", hostedCluster.GetName())
+
 			commandArgs := []string{
 				"destroy", "cluster", strings.ToLower(TYPE_KUBEVIRT),
 				"--name", hostedCluster.GetName(),
