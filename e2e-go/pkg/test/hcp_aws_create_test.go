@@ -3,6 +3,7 @@ package hypershift_test
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	g "github.com/onsi/ginkgo/v2"
@@ -27,7 +28,7 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 		// oc get addondeploymentconfig hypershift-addon-deploy-config -n mce -ojson | jq '.spec.ports | map(.name == "autoImportDisabled") | index(true)'
 
 		commandArgs := []string{
-			"create", "cluster", TYPE_AWS,
+			"create", "cluster", strings.ToLower(TYPE_AWS),
 			"--name", config.ClusterName,
 			"--secret-creds", config.SecretCredsName,
 			"--region", config.Region,
