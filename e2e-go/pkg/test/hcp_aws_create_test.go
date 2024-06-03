@@ -19,6 +19,9 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 		// Before each test, generate a unique cluster name to create the hosted cluster with
 		config.ClusterName, err = utils.GenerateClusterName("acmqe-hc")
 		o.Expect(err).ShouldNot(o.HaveOccurred())
+
+		config.ClusterArch, err = utils.GetArch()
+		o.Expect(err).ShouldNot(o.HaveOccurred())
 	})
 
 	g.It("Creates a FIPS AWS Hosted Cluster using --secret-creds", g.Label("create"), func() {
@@ -36,6 +39,7 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 			"--namespace", config.Namespace,
 			"--instance-type", config.InstanceType,
 			"--release-image", config.ReleaseImage,
+			"--arch", config.ClusterArch,
 		}
 
 		if fipsEnabled == "true" {

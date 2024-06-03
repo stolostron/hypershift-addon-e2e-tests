@@ -252,6 +252,13 @@ func GetReleaseImage(cloud string) (string, error) {
 	}
 }
 
+func GetArch() (string, error) {
+	if os.Getenv("HCP_ARCH") != "" {
+		return os.Getenv("HCP_ARCH"), nil
+	}
+	return "amd64", nil
+}
+
 func GetInstanceType(cloud string) (string, error) {
 	if os.Getenv("HCP_INSTANCE_TYPE") != "" {
 		return os.Getenv("HCP_INSTANCE_TYPE"), nil
