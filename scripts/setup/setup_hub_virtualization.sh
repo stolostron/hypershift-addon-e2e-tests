@@ -218,7 +218,7 @@ if [[ $(oc get csv -n openshift-cnv ${CSV} -o jsonpath='{.status.phase}') != "Su
 fi
 
 # Deploy HyperConverged custom resource to complete kubevirt's installation
-oc create -f - <<EOF
+oc apply -f - <<EOF
 apiVersion: hco.kubevirt.io/v1beta1
 kind: HyperConverged
 metadata:
