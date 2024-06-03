@@ -88,6 +88,8 @@ if [ -z ${PULL_SECRET+x} ]; then
   exit 1
 fi
 
+PULL_SECRET=$(cat "${PULL_SECRET}")
+
 # set default instance type for aws
 # HCP_AWS_INSTANCE_TYPE=m6g.large
 # HCP_AWS_ARCH=arm64
