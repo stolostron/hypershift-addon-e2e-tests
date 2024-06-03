@@ -28,7 +28,6 @@ var AcmManagedClusterAddOns = []string{
 	"application-manager",
 	"cert-policy-controller",
 	"cluster-proxy",
-	"iam-policy-controller",
 	"cert-policy-controller",
 	"governance-policy-framework",
 	"search-collector",
