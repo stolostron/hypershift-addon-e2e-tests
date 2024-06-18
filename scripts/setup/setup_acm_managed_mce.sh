@@ -81,8 +81,8 @@ for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
     oc wait --for=condition=Available=True managedclusteraddon hypershift-addon -n "$managedcluster_name" --timeout "${TIMEOUT}"
 done
 
-## TODO: apply policy for auto-import
-## oc apply -f $MANIFESTS_DIR/06-policy-mce-hcp-autoimport.yaml
+# Apply policy for auto importing discovered HCP clusters
+oc apply -f $MANIFESTS_DIR/06-policy-mce-hcp-autoimport.yaml
 
 for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
     if [ ! -e "$kubeconfig" ]; then
@@ -113,23 +113,22 @@ for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
         oc wait discoveredcluster "$discoveredcluster" -n "$managedcluster_name" --for=jsonpath='{.spec.isManagedCluster}'=true
         echo
 
-        ## TODO: check on the hub that HCP-managed clusters are successfully imported and healthy
         HCP_MC=$managedcluster_name-$hostedcluster
         echo "Checking the managedcluster $HCP_MC is imported and healthy..."
-        #oc wait --for=condition=ManagedClusterImportSucceeded=True managedclusters "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=ManagedClusterAvailable=True managedclusters "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=ManagedClusterJoined=True managedclusters "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=ManagedClusterImportSucceeded=True managedclusters "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=ManagedClusterAvailable=True managedclusters "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=ManagedClusterJoined=True managedclusters "$HCP_MC" --timeout ${TIMEOUT}
         echo
-        
+
         echo "Checking the managedcluster addons for $HCP_MC are healthy..."
-        #oc wait --for=condition=Available=True managedclusteraddon application-manager -n "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=Available=True managedclusteraddon cluster-proxy -n "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=Available=True managedclusteraddon config-policy-controller  -n "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=Available=True managedclusteraddon cert-policy-controller -n "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=Available=True managedclusteraddon governance-policy-framework -n "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=Available=True managedclusteraddon work-manager -n "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=Available=True managedclusteraddon managed-serviceaccount -n "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=Available=True managedclusteraddon search-collector -n "$HCP_MC" --timeout ${TIMEOUT}
-        #oc wait --for=condition=Available=True managedclusteraddon observability-controller -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon application-manager -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon cluster-proxy -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon config-policy-controller  -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon cert-policy-controller -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon governance-policy-framework -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon work-manager -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon managed-serviceaccount -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon search-collector -n "$HCP_MC" --timeout ${TIMEOUT}
+        oc wait --for=condition=Available=True managedclusteraddon observability-controller -n "$HCP_MC" --timeout ${TIMEOUT}
     done
 done
