@@ -1,0 +1,19 @@
+apiVersion: addon.open-cluster-management.io/v1alpha1
+kind: ClusterManagementAddOn
+metadata:
+  name: cluster-proxy
+spec:
+  addOnMeta:
+    displayName: cluster-proxy
+  installStrategy:
+    placements:
+    - name: global
+      namespace: open-cluster-management-global-set
+      rolloutStrategy:
+        type: All
+      configs:
+      - group: addon.open-cluster-management.io
+        name: $ADDON_CONFIG_NS
+        namespace: $MCE_NS
+        resource: addondeploymentconfigs
+    type: Placements

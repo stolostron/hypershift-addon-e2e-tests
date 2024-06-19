@@ -1,0 +1,9 @@
+kind: KlusterletConfig
+apiVersion: config.open-cluster-management.io/v1alpha1
+metadata:
+  name: $KLUSTERLET_CONFIG
+spec:
+  installMode:
+    type: noOperator
+    noOperator:
+       postfix: mce-import

@@ -1,0 +1,9 @@
+apiVersion: cluster.open-cluster-management.io/v1
+kind: ManagedCluster
+metadata:
+  annotations:
+    agent.open-cluster-management.io/klusterlet-config: $KLUSTERLET_CONFIG
+  name: $MCE_MANAGED_CLUSTER_NAME
+spec:
+  hubAcceptsClient: true
+  leaseDurationSeconds: 60
