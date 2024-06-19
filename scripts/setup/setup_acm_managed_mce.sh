@@ -25,10 +25,11 @@ envsubst < $MANIFESTS_DIR/00-addondeploymentconfig.yaml | oc apply -f -
 # Do the same update for managed-serviceaccount addon.
 envsubst < $MANIFESTS_DIR/01-clustermanagementaddon-work-mgr.yaml | oc apply -f -
 envsubst < $MANIFESTS_DIR/02-clustermanagementaddon-sa.yaml | oc apply -f -
+envsubst < $MANIFESTS_DIR/03-clustermanagementaddon-cluster-proxy.yaml | oc apply -f -
 
 # enable the hypershift addon on the managed mce clusters
 oc patch addondeploymentconfig hypershift-addon-deploy-config -n "${MCE_NS}" --type=merge -p "{\"spec\":{\"agentInstallNamespace\":\"${AGENT_NS}\"}}"
-oc patch addondeploymentconfig hypershift-addon-deploy-config -n "${MCE_NS}" --type=merge -p '{"spec":{"customizedVariables":[{"name":"disableMetrics","value": "true"}]}}'
+oc patch addondeploymentconfig hypershift-addon-deploy-config -n "${MCE_NS}" --type=merge -p '{"spec":{"customizedVariables":[{"name":"disableMetrics","value": "true"},{"name":"disableHOManagement","value": "true"}]}}'
 
 # Ensure addons are installed in the specified namespace
 oc get deployment -n "${AGENT_NS}"
@@ -36,7 +37,7 @@ oc wait --for=condition=Available=True deployment klusterlet-addon-workmgr -n "$
 oc wait --for=condition=Available=True deployment managed-serviceaccount-addon-agent -n "${AGENT_NS}" --timeout "${TIMEOUT}"
 
 # Create the KlusterletConfig resource necessary for importing MCE
-envsubst < $MANIFESTS_DIR/03-klusterletconfig.yaml  | oc apply -f -
+envsubst < $MANIFESTS_DIR/04-klusterletconfig.yaml  | oc apply -f -
 
 # create the mce managed cluster with the necessary annotations
 # DO NOT enable any other ACM addons for the imported MCE.
@@ -56,11 +57,11 @@ for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
     echo
     echo "Applying the following auto-import-secret: "
     echo
-    envsubst < $MANIFESTS_DIR/05-auto-import-secret.yaml
+    envsubst < $MANIFESTS_DIR/06-auto-import-secret.yaml
     echo
 
-    envsubst < $MANIFESTS_DIR/04-managedcluster-mce.yaml | oc apply -f -
-    envsubst < $MANIFESTS_DIR/05-auto-import-secret.yaml | oc apply -f -
+    envsubst < $MANIFESTS_DIR/05-managedcluster-mce.yaml | oc apply -f -
+    envsubst < $MANIFESTS_DIR/06-auto-import-secret.yaml | oc apply -f -
 done
 
 # enable the hypershift addon on the managed mce clusters
@@ -81,8 +82,7 @@ for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
     oc wait --for=condition=Available=True managedclusteraddon hypershift-addon -n "$managedcluster_name" --timeout "${TIMEOUT}"
 done
 
-# Apply policy for auto importing discovered HCP clusters
-oc apply -f $MANIFESTS_DIR/06-policy-mce-hcp-autoimport.yaml
+oc apply -f $MANIFESTS_DIR/07-policy-mce-hcp-autoimport.yaml
 
 for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
     if [ ! -e "$kubeconfig" ]; then
@@ -119,7 +119,7 @@ for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
         oc wait --for=condition=ManagedClusterAvailable=True managedclusters "$HCP_MC" --timeout ${TIMEOUT}
         oc wait --for=condition=ManagedClusterJoined=True managedclusters "$HCP_MC" --timeout ${TIMEOUT}
         echo
-
+        
         echo "Checking the managedcluster addons for $HCP_MC are healthy..."
         oc wait --for=condition=Available=True managedclusteraddon application-manager -n "$HCP_MC" --timeout ${TIMEOUT}
         oc wait --for=condition=Available=True managedclusteraddon cluster-proxy -n "$HCP_MC" --timeout ${TIMEOUT}
