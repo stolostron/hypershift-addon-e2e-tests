@@ -18,6 +18,12 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 	ginkgo.BeforeEach(func() {
 		config.SecretCredsName, err = utils.GetAWSSecretCreds()
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		config.AWSStsCreds, err = utils.GetAWSStsCreds()
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+		config.AWSRoleArn, err = utils.GetAWSRoleArn()
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	})
 
 	ginkgo.It("Destroy all AWS hosted clusters on the hub", ginkgo.Label("destroy"), func() {
