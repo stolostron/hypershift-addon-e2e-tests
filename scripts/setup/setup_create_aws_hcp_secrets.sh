@@ -58,11 +58,6 @@ if [ -z ${HCP_REGION+x} ]; then
   HCP_REGION="us-east-1"
 fi
 
-if [ -z ${SECRET_AWS_CRED_NAME+x} ]; then
-  echo "WARN: SECRET_AWS_CRED_NAME is not defined, defaulting to clc-hs-aws-cred"
-  SECRET_AWS_CRED_NAME="clc-hs-aws-cred"
-fi
-
 if [ -z ${S3_REGION+x} ]; then
   echo "WARN: S3_REGION is not defined, defaulting to us-east-1"
   S3_REGION="us-east-1"
@@ -106,6 +101,24 @@ AWS_CREDS_FILE=./.aws/credentials
 cat ${AWS_CREDS_FILE}
 
 #######################################################
+# Create AWS sts-creds.json
+#######################################################
+aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+aws sts get-caller-identity --no-cli-pager
+# TODO: check identity is valid
+aws sts get-session-token --no-cli-pager --output json > sts-creds.json
+# TODO: check session token is good, store/retreive from secret?
+
+#######################################################
+# TODO: Create AWS role if doesn't exist
+#######################################################
+
+#######################################################
+# TODO: Create AWS S3 Bucket if doesn't exist
+#######################################################
+
+#######################################################
 # Create secrets for hypershift operator installation
 #######################################################
 echo "$(date) creating secret hypershift-operator-oidc-provider-s3-credentials..."
@@ -119,73 +132,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 echo
-
-echo "$(date) creating secret hypershift-operator-external-dns-credentials..."
-oc delete secret hypershift-operator-external-dns-credentials --ignore-not-found -n ${HOSTING_CLUSTER}
-oc create secret generic hypershift-operator-external-dns-credentials --from-file=credentials=${AWS_CREDS_FILE} --from-literal=provider=aws --from-literal=domain-filter=${EXT_DNS_DOMAIN} -n ${HOSTING_CLUSTER}
-oc label secret hypershift-operator-external-dns-credentials -n ${HOSTING_CLUSTER} cluster.open-cluster-management.io/backup=true --overwrite
-if [ $? -ne 0 ]; then
-  echo "$(date) failed to create secret hypershift-operator-external-dns-credentials"
-  exit 1
-fi
-echo
 #######################################################
-
-#######################################################
-# Create mce aws secret on the hosting cluster
-#######################################################
-if oc get secret "$SECRET_AWS_CRED_NAME" -n "$HOSTED_CLUSTER_NS"; then
-  echo "Secret $SECRET_AWS_CRED_NAME already exists in $HOSTED_CLUSTER_NS namespace... re-creating secret"
-  # delete secret ignore error
-  oc delete secret "$SECRET_AWS_CRED_NAME" -n "$HOSTED_CLUSTER_NS" --ignore-not-found
-fi
-
-echo "Creating new secret $SECRET_AWS_CRED_NAME in $HOSTED_CLUSTER_NS namespace..."
-
-if [ -z ${HCP_BASE_DOMAIN_NAME+x} ]; then
-  echo "ERROR: HCP_BASE_DOMAIN_NAME is not defined"
-  exit 1
-fi
-
-if [ -z ${SSH_PUBLIC_KEY+x} ]; then
-  echo "ERROR: SSH_PUBLIC_KEY is not defined"
-  exit 1
-fi
-
-if [ -z ${SSH_PRIVATE_KEY+x} ]; then
-  echo "ERROR: SSH_PRIVATE_KEY is not defined"
-  exit 1
-fi
-
-oc apply -f - <<EOF
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: $SECRET_AWS_CRED_NAME
-  namespace: $HOSTED_CLUSTER_NS
-  labels:
-    cluster.open-cluster-management.io/type: aws
-    cluster.open-cluster-management.io/credentials: ""
-stringData:
-  aws_access_key_id: $AWS_ACCESS_KEY_ID
-  aws_secret_access_key: $AWS_SECRET_ACCESS_KEY
-  baseDomain: $HCP_BASE_DOMAIN_NAME
-  pullSecret: >
-    $PULL_SECRET
-  ssh-privatekey: |
-    $SSH_PRIVATE_KEY
-  ssh-publickey: >
-    $SSH_PUBLIC_KEY
-  httpProxy: ""
-  httpsProxy: ""
-  noProxy: ""
-  additionalTrustBundle: ""
-EOF
-if [ $? -ne 0 ]; then
-  echo "$(date) failed to create secret aws mce secret"
-  exit 1
-fi
 
 #######################################################
 ## Create secrets
@@ -193,10 +140,5 @@ fi
 
 echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
 oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
-echo "$(date) S3 Bucket secret created and hosting cluster configured!"
-echo
-
-echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the AWS secret creds..."
-oc wait secret/"${SECRET_AWS_CRED_NAME}" -n "${HOSTED_CLUSTER_NS}" --for=jsonpath='{.metadata.name}'="${SECRET_AWS_CRED_NAME}" --timeout=${TIMEOUT}
 echo "$(date) S3 Bucket secret created and hosting cluster configured!"
 echo

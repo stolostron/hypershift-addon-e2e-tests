@@ -5,7 +5,7 @@
             "Effect": "Allow",
             "Principal": "*",
             "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::acmqe-hcp-clc/*"
+            "Resource": "arn:aws:s3:::qe-hcp-clc/*"
         }
     ]
 }
