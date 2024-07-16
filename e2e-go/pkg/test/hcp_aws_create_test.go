@@ -22,9 +22,15 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 
 		config.ClusterArch, err = utils.GetArch()
 		o.Expect(err).ShouldNot(o.HaveOccurred())
+
+		config.AWSStsCreds, err = utils.GetAWSStsCreds()
+		o.Expect(err).ShouldNot(o.HaveOccurred())
+
+		config.AWSRoleArn, err = utils.GetAWSRoleArn()
+		o.Expect(err).ShouldNot(o.HaveOccurred())
 	})
 
-	g.It("Creates a FIPS AWS Hosted Cluster using --secret-creds", g.Label("create"), func() {
+	g.It("Creates a FIPS AWS Hosted Cluster using STS Creds", g.Label("create"), func() {
 		startTime := time.Now()
 		// TODO ensure auto-import is enabled
 		// check if it exists:
@@ -33,7 +39,10 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 		commandArgs := []string{
 			"create", "cluster", strings.ToLower(TYPE_AWS),
 			"--name", config.ClusterName,
-			"--secret-creds", config.SecretCredsName,
+			"--sts-creds", config.AWSStsCreds,
+			"--role-arn", config.AWSRoleArn,
+			"--pull-secret", config.PullSecret,
+			"--base-domain", config.BaseDomain,
 			"--region", config.Region,
 			"--node-pool-replicas", config.NodePoolReplicas,
 			"--namespace", config.Namespace,
@@ -41,6 +50,11 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 			"--release-image", config.ReleaseImage,
 			"--arch", config.ClusterArch,
 		}
+		// remove secret-creds
+		// regular aws creds for s3 bucket
+
+		// pre-setup the bucket via policy
+		// pre-setup the role via policy
 
 		if fipsEnabled == "true" {
 			commandArgs = append(commandArgs, "--fips")

@@ -7,7 +7,6 @@ if [ -z ${PULL_SECRET+x} ]; then
   echo "oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d &> hub_pull_secret"
   oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d &> hub_pull_secret
   export PULL_SECRET="./hub_pull_secret"
-  
 fi
 
 if [ -z ${HOSTING_CLUSTER+x} ]; then

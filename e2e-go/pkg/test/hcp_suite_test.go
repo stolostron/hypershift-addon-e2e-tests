@@ -38,6 +38,8 @@ type Config struct {
 	ExternalDNS      string
 	SecretCredsName  string
 	ClusterArch      string
+	AWSStsCreds      string
+	AWSRoleArn       string
 }
 
 const (

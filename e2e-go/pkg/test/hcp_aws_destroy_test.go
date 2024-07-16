@@ -39,7 +39,8 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI AWS Destroy Tests:", ginkgo.La
 				"destroy", "cluster", strings.ToLower(TYPE_AWS),
 				"--name", hostedCluster.GetName(),
 				"--namespace", hostedCluster.GetNamespace(),
-				"--secret-creds", config.SecretCredsName,
+				"--sts-creds", config.AWSStsCreds,
+				"--role-arn", config.AWSRoleArn,
 				"--destroy-cloud-resources",
 			}
 

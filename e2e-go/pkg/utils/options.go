@@ -259,6 +259,20 @@ func GetArch() (string, error) {
 	return "amd64", nil
 }
 
+func GetAWSStsCreds() (string, error) {
+	if os.Getenv("AWS_STS_CREDS_FILE_PATH") != "" {
+		return os.Getenv("AWS_STS_CREDS_FILE_PATH"), nil
+	}
+	return "", fmt.Errorf("sts creds file path missing")
+}
+
+func GetAWSRoleArn() (string, error) {
+	if os.Getenv("AWS_ROLE_ARN") != "" {
+		return os.Getenv("AWS_ROLE_ARN"), nil
+	}
+	return "", fmt.Errorf("sts creds file path missing")
+}
+
 func GetInstanceType(cloud string) (string, error) {
 	if os.Getenv("HCP_INSTANCE_TYPE") != "" {
 		return os.Getenv("HCP_INSTANCE_TYPE"), nil
