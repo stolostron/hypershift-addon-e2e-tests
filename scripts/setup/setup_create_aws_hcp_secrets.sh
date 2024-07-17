@@ -105,9 +105,9 @@ cat ${AWS_CREDS_FILE}
 #######################################################
 aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
 aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-aws sts get-caller-identity --no-cli-pager
+aws sts get-caller-identity --no-cli-pager --region $HCP_REGION
 # TODO: check identity is valid
-aws sts get-session-token --no-cli-pager --output json > sts-creds.json
+aws sts get-session-token --no-cli-pager --output json --region $HCP_REGION > sts-creds.json
 # TODO: check session token is good, store/retreive from secret?
 
 #######################################################
