@@ -67,6 +67,8 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 			commandArgs = append(commandArgs, "--pausedUntil", "true")
 		}
 
+		fmt.Println(commandArgs)
+
 		cmd := exec.Command(utils.HypershiftCLIName, commandArgs...)
 		session, err := gexec.Start(cmd, g.GinkgoWriter, g.GinkgoWriter)
 		o.Expect(err).ShouldNot(o.HaveOccurred())
