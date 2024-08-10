@@ -43,7 +43,7 @@
 #export PULL_SECRET=/Users/dhuynh/dhu-pull-secret.txt
 #########################################
 
-TIMEOUT=300s # default: 5 minute timeout for oc wait commands
+TIMEOUT=600s # default: 10 minute timeout for oc wait commands
 
 cleanup() {
   echo "cleaning up tmp files"
@@ -140,5 +140,9 @@ echo
 
 echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
 oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
+if [ $? -ne 0 ]; then
+  echo "$(date) failed to get configmap/oidc-storage-provider-s3-config"
+  exit 1
+fi
 echo "$(date) S3 Bucket secret created and hosting cluster configured!"
 echo
