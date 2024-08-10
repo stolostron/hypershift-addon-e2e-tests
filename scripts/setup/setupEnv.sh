@@ -69,3 +69,10 @@ while [ ${FOUND} -eq 1 ]; do
   sleep 10
   ((SECONDS = SECONDS + 10))
 done
+
+echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
+oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
+if [ $? -ne 0 ]; then
+  echo "$(date) failed to get configmap/oidc-storage-provider-s3-config"
+  exit 1
+fi
