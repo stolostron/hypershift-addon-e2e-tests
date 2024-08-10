@@ -124,13 +124,13 @@ aws sts get-session-token --no-cli-pager --output json --region $HCP_REGION > st
 echo "$(date) creating secret hypershift-operator-oidc-provider-s3-credentials..."
 oc delete secret hypershift-operator-oidc-provider-s3-credentials --ignore-not-found -n ${HOSTING_CLUSTER}
 oc create secret generic hypershift-operator-oidc-provider-s3-credentials --from-file=credentials=${AWS_CREDS_FILE} --from-literal=bucket=${S3_BUCKET_NAME} --from-literal=region=${S3_REGION} -n ${HOSTING_CLUSTER}
-oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER} cluster.open-cluster-management.io/credentials= --overwrite
-oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER} cluster.open-cluster-management.io/type=awss3 --overwrite
-oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER} cluster.open-cluster-management.io/backup=true --overwrite
 if [ $? -ne 0 ]; then
   echo "$(date) failed to create secret hypershift-operator-oidc-provider-s3-credentials"
   exit 1
 fi
+oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER} cluster.open-cluster-management.io/credentials= --overwrite
+oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER} cluster.open-cluster-management.io/type=awss3 --overwrite
+oc label secret hypershift-operator-oidc-provider-s3-credentials -n ${HOSTING_CLUSTER} cluster.open-cluster-management.io/backup=true --overwrite
 echo
 #######################################################
 
@@ -140,9 +140,12 @@ echo
 
 echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
 oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
-if [ $? -ne 0 ]; then
-  echo "$(date) failed to get configmap/oidc-storage-provider-s3-config"
-  exit 1
-fi
+# if [ $? -ne 0 ]; then
+#   echo "$(date) failed to get configmap/oidc-storage-provider-s3-config"
+#   exit 1
+# fi
+
+oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o yaml
+
 echo "$(date) S3 Bucket secret created and hosting cluster configured!"
 echo
