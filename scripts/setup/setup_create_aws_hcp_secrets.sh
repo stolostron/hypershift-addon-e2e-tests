@@ -138,12 +138,36 @@ echo
 ## Create secrets
 #######################################################
 
+# Wait for hypershift-addon to be available
+echo "$(date) Waiting for hypershift-addon..."
+FOUND=1
+SECONDS=0
+while [ ${FOUND} -eq 1 ]; do
+  # Wait up to 10min
+  if [ ${SECONDS} -gt 600 ]; then
+    echo "Timeout waiting for hypershift-addon to be available."
+    echo "List of current pods:"
+    oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o yaml
+    exit 1
+  fi
+
+  addonAvailable=$(oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
+  addonDegraded=$(oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o jsonpath='{.status.conditions[?(@.type=="Degraded")].status}')
+
+  if [[ ("$addonAvailable" == "True") && ("$addonDegraded" == "False") ]]; then
+    echo "Hypershift addon is available"
+    break
+  fi
+  sleep 10
+  ((SECONDS = SECONDS + 10))
+done
+
 echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
 oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
-# if [ $? -ne 0 ]; then
-#   echo "$(date) failed to get configmap/oidc-storage-provider-s3-config"
-#   exit 1
-# fi
+if [ $? -ne 0 ]; then
+  echo "$(date) failed to get configmap/oidc-storage-provider-s3-config"
+  exit 1
+fi
 
 oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o yaml
 
