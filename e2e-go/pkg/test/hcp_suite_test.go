@@ -126,7 +126,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 
 	ginkgo.By("Check & Print the hcp cli version running version on the system")
 	// use gomega gexec function to run the command hypershift version and print it out
-	command := exec.Command(utils.HypershiftCLIName, "version")
+	command := exec.Command(utils.HypershiftCLIName, "-v")
 	session, err := gexec.Start(command, ginkgo.GinkgoWriter, ginkgo.GinkgoWriter)
 	defer gexec.KillAndWait()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
