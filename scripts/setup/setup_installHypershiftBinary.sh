@@ -48,9 +48,9 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "$(date) ${HCP_BINARY_NAME} CLI version installed:"
-if $(${HCP_BINARY_NAME} -v | grep -q 'openshift/hypershift'); then
+if $(${HCP_BINARY_NAME} version | grep -q 'openshift/hypershift'); then
   date
-  ${HCP_BINARY_NAME} -v
+  ${HCP_BINARY_NAME} version
   echo "$(date) You are ready to provision a hosted plane cluster!"
 else
   echo "$(date) ERROR: ${HCP_BINARY_NAME} CLI failed!"
