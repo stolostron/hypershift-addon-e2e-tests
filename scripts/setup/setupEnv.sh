@@ -46,12 +46,14 @@ metadata:
 EOF
 
 ./setup_installHypershiftBinary.sh
-./setup_create_aws_hcp_secrets.sh
-
-echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
-oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
 if [ $? -ne 0 ]; then
-  echo "$(date) failed to get configmap/oidc-storage-provider-s3-config"
+  echo "$(date) failed to download the hypershift binary"
+  exit 1
+fi
+
+./setup_create_aws_hcp_secrets.sh
+if [ $? -ne 0 ]; then
+  echo "$(date) failed to set-up aws hcp secrets"
   exit 1
 fi
 
