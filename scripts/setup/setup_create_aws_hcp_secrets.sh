@@ -162,6 +162,26 @@ while [ ${FOUND} -eq 1 ]; do
   ((SECONDS = SECONDS + 10))
 done
 
+echo "$(date) Waiting for configmap/oidc-storage-provider-s3-config to be configured..."
+FOUND=1
+SECONDS=0
+while [ ${FOUND} -eq 1 ]; do
+  # Wait up to 10min
+  if [ ${SECONDS} -gt 600 ]; then
+    echo "Timeout waiting for configmap/oidc-storage-provider-s3-config!"
+    exit 1
+  fi
+
+  configMapName=$(oc get configmap oidc-storage-provider-s3-config -n kube-public -o jsonpath='{.data.name}')
+
+  if [[ ("$configMapName" == "${S3_BUCKET_NAME}") ]]; then
+    echo "$(date) S3 Bucket secret created and hosting cluster configured!"
+    break
+  fi
+  sleep 10
+  ((SECONDS = SECONDS + 10))
+done
+
 echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
 oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
 if [ $? -ne 0 ]; then
@@ -169,7 +189,5 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+# dump the hypershift-addon CR
 oc get managedclusteraddon hypershift-addon -n "${HOSTING_CLUSTER}" -o yaml
-
-echo "$(date) S3 Bucket secret created and hosting cluster configured!"
-echo
