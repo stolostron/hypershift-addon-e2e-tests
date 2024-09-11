@@ -2,6 +2,8 @@
 # Requires to be connected to the hub already before running
 # Requires all variables already set as required by setup scripts
 
+TIMEOUT=600s # default: 10 minute timeout for oc wait commands
+
 if [ -z ${PULL_SECRET+x} ]; then
   echo "WARN: PULL_SECRET is not defined, defaulting to the one that exists on the MCE/ACM hub via:"
   echo "oc get secret/pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d &> hub_pull_secret"
@@ -45,6 +47,13 @@ EOF
 
 ./setup_installHypershiftBinary.sh
 ./setup_create_aws_hcp_secrets.sh
+
+echo "$(date) Waiting up to ${TIMEOUT} to verify the hosting service cluster is configured with the s3 bucket..."
+oc wait configmap/oidc-storage-provider-s3-config -n kube-public --for=jsonpath='{.data.name}'="${S3_BUCKET_NAME}" --timeout=${TIMEOUT}
+if [ $? -ne 0 ]; then
+  echo "$(date) failed to get configmap/oidc-storage-provider-s3-config"
+  exit 1
+fi
 
 # Wait for hypershift-addon to be available
 echo "$(date) Waiting for hypershift-addon..."
