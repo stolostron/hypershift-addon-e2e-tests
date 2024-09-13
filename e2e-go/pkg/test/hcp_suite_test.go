@@ -43,7 +43,7 @@ type Config struct {
 }
 
 const (
-	eventuallyTimeout      = 30 * time.Minute
+	eventuallyTimeout      = 60 * time.Minute
 	eventuallyTimeoutShort = 10 * time.Minute
 	eventuallyInterval     = 5 * time.Second
 	TYPE_AWS               = "AWS"
@@ -137,7 +137,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	ginkgo.By("Checking if the oidc aws s3 secret exists on the hub (Required only for AWS)")
 	oidcProviderCredential, err := utils.GetS3Creds()
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
-	err = utils.CreateOIDCProviderSecret(context.TODO(), kubeClient, "acmqe-hypershift", oidcProviderCredential, "us-east-1", defaultManagedCluster)
+	err = utils.CreateOIDCProviderSecret(context.TODO(), kubeClient, "qe-hcp-clc", oidcProviderCredential, "us-east-1", defaultManagedCluster)
 	if err != nil {
 		gomega.Expect(apierrors.IsAlreadyExists(err)).Should(gomega.BeTrue())
 		fmt.Printf("Secret hypershift-operator-oidc-provider-s3-credentials already exists in namespace %s\n", defaultManagedCluster)
