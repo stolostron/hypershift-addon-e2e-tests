@@ -43,7 +43,7 @@ type Config struct {
 }
 
 const (
-	eventuallyTimeout      = 60 * time.Minute
+	eventuallyTimeout      = 45 * time.Minute
 	eventuallyTimeoutShort = 10 * time.Minute
 	eventuallyInterval     = 5 * time.Second
 	TYPE_AWS               = "AWS"
