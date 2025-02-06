@@ -98,11 +98,18 @@ for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
     oc --kubeconfig "$kubeconfig" wait --for=condition=Available=True deployment managed-serviceaccount-addon-agent -n "${AGENT_NS}" --timeout "${TIMEOUT}"
     oc --kubeconfig "$kubeconfig" wait --for=condition=Available=True deployment hypershift-addon-agent -n "${AGENT_NS}" --timeout "${TIMEOUT}"
 
+    ## configure the prefix for the hosted clusters to a custom one.
+    ## we'll use the "clc" prefix here
+    echo "Patching the hypershift-addon-deploy-config to set the discoveryPrefix to 'clc'..."
+    oc patch addondeploymentconfig hypershift-addon-deploy-config -n multicluster-engine --type=merge -p '{"spec":{"customizedVariables":[{"name":"disableMetrics","value": "true"},{"name":"disableHOManagement","value": "true"},{"name":"discoveryPrefix","value": "clc"}]}}'
+    echo
+    
     ## get list of HCPs on the MCEs and then
     ## check on the hub that the HCPs appear as DiscoveredClusters with name <managed_mce_name>-<hcp_name>
     echo "Hosted clusters on managed MCE hub $managedcluster_name:"
     hostedclusters=$(oc --kubeconfig "$kubeconfig" get hostedclusters -A -o jsonpath='{.items[*].metadata.name}')
     echo "$hostedclusters"
+    echo
 
     for hostedcluster in $hostedclusters; do
         echo "Checking if the hostedcluster $hostedcluster is correctly reflected as a DiscoveredCluster"
