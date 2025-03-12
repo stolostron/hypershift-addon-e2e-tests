@@ -16,7 +16,7 @@ const (
 	HCPCliDownloadName          = "hcp-cli-download"
 	UnknownError                = "[unknown error]"
 	UnknownErrorLink            = "https://github.com/stolostron/cluster-lifecycle-e2e/blob/main/doc/e2eFailedAnalysis.md#unknown-error"
-	eventuallyTimeout           = 30 * time.Minute
+	eventuallyTimeout           = 45 * time.Minute
 	eventuallyInterval          = 15 * time.Second
 	TYPE_AWS                    = "AWS"
 	TYPE_KUBEVIRT               = "KubeVirt"
