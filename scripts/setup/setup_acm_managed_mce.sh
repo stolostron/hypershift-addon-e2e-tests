@@ -101,7 +101,7 @@ for kubeconfig in "$MCE_CONFIGS_DIR"/*; do
     ## configure the prefix for the hosted clusters to a custom one.
     ## we'll use the "clc" prefix here
     echo "Patching the hypershift-addon-deploy-config to set the discoveryPrefix to 'clc'..."
-    oc patch addondeploymentconfig hypershift-addon-deploy-config -n multicluster-engine --type=merge -p '{"spec":{"customizedVariables":[{"name":"disableMetrics","value": "true"},{"name":"disableHOManagement","value": "true"},{"name":"discoveryPrefix","value": "clc"}]}}'
+    oc patch addondeploymentconfig hypershift-addon-deploy-config -n multicluster-engine --type=merge -p '{"spec":{"customizedVariables":[{"name":"disableMetrics","value": "true"},{"name":"disableHOManagement","value": "true"},{"name":"discoveryPrefix","value": ""}]}}'
     echo
     
     ## get list of HCPs on the MCEs and then
