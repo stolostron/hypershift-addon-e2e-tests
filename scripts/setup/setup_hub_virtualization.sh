@@ -5,7 +5,7 @@ set -o errexit
 set -o pipefail
 
 ODF_INSTALL_NAMESPACE=openshift-storage
-ODF_OPERATOR_CHANNEL="${ODF_OPERATOR_CHANNEL:-'stable-4.17'}"
+ODF_OPERATOR_CHANNEL="${ODF_OPERATOR_CHANNEL:-'stable-4.20'}"
 ODF_SUBSCRIPTION_NAME="${ODF_SUBSCRIPTION_NAME:-'odf-operator'}"
 ODF_BACKEND_STORAGE_CLASS="${ODF_BACKEND_STORAGE_CLASS:-'gp3-csi'}"
 ODF_VOLUME_SIZE="${ODF_VOLUME_SIZE:-100}Gi"
@@ -45,7 +45,7 @@ metadata:
   name: odf-operator
   namespace: openshift-storage
 spec:
-  channel: stable-4.18
+  channel: stable-4.20
   installPlanApproval: Automatic
   name: odf-operator
   source: redhat-operators
