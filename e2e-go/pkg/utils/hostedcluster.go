@@ -102,3 +102,50 @@ func WaitForHostedClusterDestroyed(hubClientDynamic dynamic.Interface, clusterNa
 	}, eventuallyTimeout, eventuallyInterval).Should(gomega.BeFalse())
 	fmt.Printf("Hosted Cluster %s: successfully destroyed!\n\n", clusterName)
 }
+
+// GetHostedClusterChannel returns the HostedCluster spec.channel (PR 511 / ACM-26476).
+// Returns empty string if channel is not set.
+func GetHostedClusterChannel(hubClientDynamic dynamic.Interface, clusterName, namespace string) (string, error) {
+	hc, err := GetResource(hubClientDynamic, HostedClustersGVR, namespace, clusterName)
+	if err != nil {
+		return "", err
+	}
+	spec, ok := hc.Object["spec"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("HostedCluster %s has no spec", clusterName)
+	}
+	if spec["channel"] == nil {
+		return "", nil
+	}
+	return spec["channel"].(string), nil
+}
+
+// GetHostedClusterAvailableChannels returns status.version.desired.channels from the HostedCluster.
+// Used to validate that a channel is allowed before applying (PR 511 validation).
+func GetHostedClusterAvailableChannels(hubClientDynamic dynamic.Interface, clusterName, namespace string) ([]string, error) {
+	hc, err := GetResource(hubClientDynamic, HostedClustersGVR, namespace, clusterName)
+	if err != nil {
+		return nil, err
+	}
+	status, ok := hc.Object["status"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("HostedCluster %s has no status", clusterName)
+	}
+	version, ok := status["version"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("HostedCluster %s status.version not found", clusterName)
+	}
+	desired, ok := version["desired"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("HostedCluster %s status.version.desired not found", clusterName)
+	}
+	channels, ok := desired["channels"].([]interface{})
+	if !ok {
+		return nil, nil // channels not populated yet
+	}
+	out := make([]string, len(channels))
+	for i, c := range channels {
+		out[i] = c.(string)
+	}
+	return out, nil
+}

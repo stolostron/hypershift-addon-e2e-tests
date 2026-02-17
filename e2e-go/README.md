@@ -2,6 +2,8 @@
 
 Ginkgo e2e test framework for self-managed hosted control plane using MCE / ACM. Currently supports AWS only.
 
+**What is tested when you run the suite:** see [docs/E2E_TEST_COVERAGE.md](docs/E2E_TEST_COVERAGE.md) for a full list of tests, labels, and how to run subsets.
+
 1. Ensure go is installed
 2. Set env variables (if not set, will default to options.yaml)
 
@@ -54,3 +56,12 @@ Ginkgo e2e test framework for self-managed hosted control plane using MCE / ACM.
 
     where:
     `-nodes` is set to number of parallel threads to run
+
+7. to run PR 511 / ACM-26476 channel-upgrade tests (ClusterCurator HostedCluster channel update):
+
+    ```bash
+    export CURATOR_ENABLED=true
+    ginkgo -v --label-filter='channel-upgrade' pkg/test
+    ```
+
+    See `pkg/README.md` for layout and PR 511 test requirements.

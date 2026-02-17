@@ -79,9 +79,10 @@ func CreateOrUpdateAnsibleTowerSecret(clientClient client.Client, ansSecretName,
 }
 
 func CreateOrUpdateClusterCurator(clientClient client.Client, hcName, hcNamespace, desiredCuration, hcPlatform, ansTowerSecret string) error {
-	if hcName == "" || hcNamespace == "" || desiredCuration == "" || hcPlatform == "" || ansTowerSecret == "" {
-		return fmt.Errorf("ERROR: cluster curator name, namespace, desiredcuration, platform, and tower secret must be provided")
+	if hcName == "" || hcNamespace == "" || hcPlatform == "" || ansTowerSecret == "" {
+		return fmt.Errorf("ERROR: cluster curator name, namespace, platform, and tower secret must be provided")
 	}
+	// desiredCuration may be empty when creating a curator to then patch (e.g. channel-upgrade test)
 
 	createYamlReader := templateprocessor.NewYamlFileReader(filepath.Join(CLUSTER_CURATOR_TEST_FIXTURE_DIR, "cluster_curator.yaml"))
 	values := struct {
@@ -111,6 +112,31 @@ func CreateOrUpdateClusterCurator(clientClient client.Client, hcName, hcNamespac
 	return nil
 }
 
+// CreateOrUpdateClusterCuratorForChannelUpgrade creates a minimal ClusterCurator for channel-upgrade only (PR 511).
+// No Ansible Tower secret or hooks; use with SetClusterCuratorUpgradeChannel and SetDesiredCuration("upgrade").
+func CreateOrUpdateClusterCuratorForChannelUpgrade(clientClient client.Client, hcName, hcNamespace string) error {
+	if hcName == "" || hcNamespace == "" {
+		return fmt.Errorf("ERROR: cluster curator name and namespace must be provided")
+	}
+	createYamlReader := templateprocessor.NewYamlFileReader(filepath.Join(CLUSTER_CURATOR_TEST_FIXTURE_DIR, "cluster_curator_channel_upgrade.yaml"))
+	values := struct {
+		ClusterName      string
+		ClusterNamespace string
+	}{
+		ClusterName:      hcName,
+		ClusterNamespace: hcNamespace,
+	}
+	testApplier, err := applier.NewApplier(createYamlReader, &templateprocessor.Options{}, clientClient, nil, nil, nil)
+	if err != nil {
+		return fmt.Errorf("ERROR Applier failed to be created: %v", err)
+	}
+	err = testApplier.CreateOrUpdateInPath("", nil, true, values)
+	if err != nil {
+		return fmt.Errorf("ERROR Applier failed to create or update cluster curator CR: %v", err)
+	}
+	return nil
+}
+
 func SetDesiredCuration(hubClientDynamic dynamic.Interface, curatorName, namespace, desiredCuration string) error {
 	fmt.Printf("ClusterCurator %s: Patching clustercurator in the namespace %s with spec.desiredCuration: %s\n", curatorName, namespace, desiredCuration)
 	payload := fmt.Sprintf(`{"spec": {"desiredCuration": "%s"}}`, desiredCuration)
@@ -119,6 +145,21 @@ func SetDesiredCuration(hubClientDynamic dynamic.Interface, curatorName, namespa
 		return fmt.Errorf("ERROR Failed to patch clustercurator: %v", err)
 	}
 
+	return nil
+}
+
+// SetClusterCuratorUpgradeChannel patches the ClusterCurator with spec.upgrade.channel (PR 511 / ACM-26476).
+// Use with desiredCuration "upgrade" to trigger a channel-only update on the HostedCluster.
+func SetClusterCuratorUpgradeChannel(hubClientDynamic dynamic.Interface, curatorName, namespace, channel string) error {
+	if channel == "" {
+		return fmt.Errorf("channel must be non-empty")
+	}
+	fmt.Printf("ClusterCurator %s: Patching spec.upgrade.channel to %s in namespace %s\n", curatorName, channel, namespace)
+	payload := fmt.Sprintf(`{"spec": {"upgrade": {"channel": "%s"}}}`, channel)
+	_, err := hubClientDynamic.Resource(ClusterCuratorGVR).Namespace(namespace).Patch(context.TODO(), curatorName, types.MergePatchType, []byte(payload), metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("ERROR Failed to patch clustercurator upgrade channel: %v", err)
+	}
 	return nil
 }
 

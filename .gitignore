@@ -12,3 +12,5 @@ options.yaml
 **.log
 
 e2e-go/local/
+scripts/setup/hcp
+scripts/setup/hcp.tar.gz
