@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -79,10 +80,9 @@ func CreateOrUpdateAnsibleTowerSecret(clientClient client.Client, ansSecretName,
 }
 
 func CreateOrUpdateClusterCurator(clientClient client.Client, hcName, hcNamespace, desiredCuration, hcPlatform, ansTowerSecret string) error {
-	if hcName == "" || hcNamespace == "" || hcPlatform == "" || ansTowerSecret == "" {
-		return fmt.Errorf("ERROR: cluster curator name, namespace, platform, and tower secret must be provided")
+	if hcName == "" || hcNamespace == "" || desiredCuration == "" || hcPlatform == "" || ansTowerSecret == "" {
+		return fmt.Errorf("ERROR: cluster curator name, namespace, desiredcuration, platform, and tower secret must be provided")
 	}
-	// desiredCuration may be empty when creating a curator to then patch (e.g. channel-upgrade test)
 
 	createYamlReader := templateprocessor.NewYamlFileReader(filepath.Join(CLUSTER_CURATOR_TEST_FIXTURE_DIR, "cluster_curator.yaml"))
 	values := struct {
@@ -159,6 +159,32 @@ func SetClusterCuratorUpgradeChannel(hubClientDynamic dynamic.Interface, curator
 	_, err := hubClientDynamic.Resource(ClusterCuratorGVR).Namespace(namespace).Patch(context.TODO(), curatorName, types.MergePatchType, []byte(payload), metav1.PatchOptions{})
 	if err != nil {
 		return fmt.Errorf("ERROR Failed to patch clustercurator upgrade channel: %v", err)
+	}
+	return nil
+}
+
+// SetClusterCuratorUpgradeDesiredUpdateAndType patches the ClusterCurator with spec.upgrade.desiredUpdate and/or spec.upgrade.upgradeType.
+// Use for control-plane-upgrade test. Empty strings are omitted from the patch (merge patch).
+func SetClusterCuratorUpgradeDesiredUpdateAndType(hubClientDynamic dynamic.Interface, curatorName, namespace, desiredUpdate, upgradeType string) error {
+	upgradeSpec := make(map[string]interface{})
+	if desiredUpdate != "" {
+		upgradeSpec["desiredUpdate"] = desiredUpdate
+	}
+	if upgradeType != "" {
+		upgradeSpec["upgradeType"] = upgradeType
+	}
+	if len(upgradeSpec) == 0 {
+		return nil
+	}
+	fmt.Printf("ClusterCurator %s: Patching spec.upgrade with desiredUpdate=%q upgradeType=%q in namespace %s\n", curatorName, desiredUpdate, upgradeType, namespace)
+	spec := map[string]interface{}{"spec": map[string]interface{}{"upgrade": upgradeSpec}}
+	payload, err := json.Marshal(spec)
+	if err != nil {
+		return fmt.Errorf("ERROR failed to marshal clustercurator upgrade spec: %v", err)
+	}
+	_, err = hubClientDynamic.Resource(ClusterCuratorGVR).Namespace(namespace).Patch(context.TODO(), curatorName, types.MergePatchType, payload, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("ERROR Failed to patch clustercurator upgrade desiredUpdate/upgradeType: %v", err)
 	}
 	return nil
 }

@@ -19,6 +19,9 @@ ginkgo -v --label-filter='e2e' pkg/test
 # PR 511 / ACM-26476 – ClusterCurator HostedCluster channel update only
 ginkgo -v --label-filter='channel-upgrade' pkg/test
 
+# Control-plane-only upgrade
+ginkgo -v --label-filter='control-plane-upgrade' pkg/test
+
 # Create / destroy (see repo README for env and options)
 ginkgo -v --label-filter='create' pkg/test
 ginkgo -v --label-filter='destroy' pkg/test
@@ -36,7 +39,6 @@ Tests for [PR 511](https://github.com/open-cluster-management/cluster-curator-co
 
 **Requirements:**
 
-- `CURATOR_ENABLED=true`
 - An existing HostedCluster (e.g. `HCP_CLUSTER_NAME` or options)
 - Ansible Tower secret for upgrade hooks (`CURATOR_TOWER_SECRET` or default `acmqe-hypershift/ansible-tower-secret`)
 - Optional: `HCP_UPGRADE_CHANNEL` (default `fast-4.14`) for the channel to set
@@ -46,3 +48,22 @@ Tests for [PR 511](https://github.com/open-cluster-management/cluster-curator-co
 - `utils.SetClusterCuratorUpgradeChannel()` – patch `spec.upgrade.channel`
 - `utils.GetHostedClusterChannel()` – read HostedCluster `spec.channel`
 - `utils.GetHostedClusterAvailableChannels()` – read `status.version.desired.channels`
+
+## Control-plane-only upgrade tests
+
+**Label:** `control-plane-upgrade`
+
+ClusterCurator upgrade of HostedCluster control plane only (or NodePools only), without upgrading both.
+
+**Inputs (same as channel-upgrade plus upgrade type and desiredUpdate):**
+
+- Existing HostedCluster: `HCP_CLUSTER_NAME` or `options.clusters.aws.clusterName`
+- `HCP_NAMESPACE` or default `clusters`
+- Target channel: `HCP_UPGRADE_CHANNEL` or `options.clustercurator.channel`
+- **Desired update (required):** `HCP_UPGRADE_DESIRED_UPDATE` or `options.clustercurator.desiredUpdate` — target OCP version (e.g. `4.19.22`); maps to `spec.upgrade.desiredUpdate`. The controller requires this for control-plane upgrade and will panic if it is empty.
+- **Upgrade type:** `HCP_UPGRADE_TYPE` or `options.clustercurator.upgradeType` — `ControlPlane` (control plane only), `NodePools` (node pools only), or empty for both
+
+**Utils:**
+
+- `utils.GetClusterCuratorUpgradeType()` – returns upgrade type from env or options
+- `utils.GetClusterCuratorDesiredUpdate()` – returns desired update version from env or options

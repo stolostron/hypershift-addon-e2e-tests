@@ -42,9 +42,11 @@ type TestOptionsT struct {
 	ClusterCurator  ClusterCuratorOpts  `json:"clustercurator,omitempty"`
 }
 
-// ClusterCuratorOpts holds options for ClusterCurator tests (e.g. channel-upgrade).
+// ClusterCuratorOpts holds options for ClusterCurator tests (e.g. channel-upgrade, control-plane-upgrade).
 type ClusterCuratorOpts struct {
-	Channel string `json:"channel,omitempty"`
+	Channel       string `json:"channel,omitempty"`
+	UpgradeType   string `json:"upgradeType,omitempty"`   // ControlPlane, NodePools, or empty for both (control-plane-upgrade test)
+	DesiredUpdate string `json:"desiredUpdate,omitempty"` // Target OCP version for upgrade (e.g. 4.19.22); maps to spec.upgrade.desiredUpdate
 }
 
 // Hub ...
@@ -380,6 +382,26 @@ func GetClusterCuratorChannel() string {
 		return v
 	}
 	return "fast-4.14"
+}
+
+// GetClusterCuratorUpgradeType returns the upgrade type for ClusterCurator (control-plane-upgrade test).
+// Values: "ControlPlane" (control plane only), "NodePools" (node pools only), or "" (upgrade both).
+// Priority: HCP_UPGRADE_TYPE env, then options.clustercurator.upgradeType, else "".
+func GetClusterCuratorUpgradeType() string {
+	if v := os.Getenv("HCP_UPGRADE_TYPE"); v != "" {
+		return v
+	}
+	return TestOptions.Options.ClusterCurator.UpgradeType
+}
+
+// GetClusterCuratorDesiredUpdate returns the desired update version for ClusterCurator upgrade (control-plane-upgrade test).
+// Value is the target OCP version string (e.g. "4.19.22"); controller uses it to set spec.release on HostedCluster/NodePools.
+// Priority: HCP_UPGRADE_DESIRED_UPDATE env, then options.clustercurator.desiredUpdate, else "".
+func GetClusterCuratorDesiredUpdate() string {
+	if v := os.Getenv("HCP_UPGRADE_DESIRED_UPDATE"); v != "" {
+		return v
+	}
+	return TestOptions.Options.ClusterCurator.DesiredUpdate
 }
 
 // GetFIPSEnabled returns if we want to enable FIPS in cluster creation

@@ -103,6 +103,34 @@ func WaitForHostedClusterDestroyed(hubClientDynamic dynamic.Interface, clusterNa
 	fmt.Printf("Hosted Cluster %s: successfully destroyed!\n\n", clusterName)
 }
 
+// GetHostedClusterSpecRelease returns the HostedCluster spec.release (release image).
+// Used to verify control-plane upgrade; controller sets this from spec.upgrade.desiredUpdate.
+func GetHostedClusterSpecRelease(hubClientDynamic dynamic.Interface, clusterName, namespace string) (string, error) {
+	hc, err := GetResource(hubClientDynamic, HostedClustersGVR, namespace, clusterName)
+	if err != nil {
+		return "", err
+	}
+	spec, ok := hc.Object["spec"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("HostedCluster %s has no spec", clusterName)
+	}
+	if spec["release"] == nil {
+		return "", nil
+	}
+	release, ok := spec["release"].(map[string]interface{})
+	if !ok {
+		// release can be a string in some API versions
+		if s, ok := spec["release"].(string); ok {
+			return s, nil
+		}
+		return "", nil
+	}
+	if release["image"] != nil {
+		return release["image"].(string), nil
+	}
+	return "", nil
+}
+
 // GetHostedClusterChannel returns the HostedCluster spec.channel (PR 511 / ACM-26476).
 // Returns empty string if channel is not set.
 func GetHostedClusterChannel(hubClientDynamic dynamic.Interface, clusterName, namespace string) (string, error) {
