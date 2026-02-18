@@ -40,6 +40,8 @@ var _ = g.Describe("Hosted Control Plane CLI KubeVirt Create Tests:", g.Label(TY
 		commandArgs = append(commandArgs, "--cores", cores)
 		commandArgs = append(commandArgs, "--node-pool-replicas", config.NodePoolReplicas)
 		commandArgs = append(commandArgs, "--namespace", config.Namespace)
+		commandArgs = append(commandArgs, "--infra-availability-policy", "SingleReplica")
+		commandArgs = append(commandArgs, "--control-plane-availability-policy", "SingleReplica")
 
 		// default not provide release image if empty
 		commandArgs = append(commandArgs, "--release-image", config.ReleaseImage)

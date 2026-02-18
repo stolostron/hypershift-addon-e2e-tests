@@ -49,6 +49,8 @@ var _ = g.Describe("Hosted Control Plane CLI AWS Create Tests:", g.Label(TYPE_AW
 			"--instance-type", config.InstanceType,
 			"--release-image", config.ReleaseImage,
 			"--arch", config.ClusterArch,
+			"--infra-availability-policy", "SingleReplica",
+			"--control-plane-availability-policy", "SingleReplica",
 		}
 		// remove secret-creds
 		// regular aws creds for s3 bucket

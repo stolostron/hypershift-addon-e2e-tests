@@ -29,3 +29,6 @@ options:
       awsCredName: ''
     secrets:
       pullSecret: ''
+  # ClusterCurator options (e.g. for channel-upgrade test)
+  clustercurator:
+    channel: 'fast-4.20'

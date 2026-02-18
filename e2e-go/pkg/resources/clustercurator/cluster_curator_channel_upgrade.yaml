@@ -1,0 +1,11 @@
+# Minimal ClusterCurator for channel-upgrade only (PR 511 / ACM-26476).
+# No Ansible Tower / prehook / posthook; used when only spec.upgrade.channel is set.
+# desiredCuration is omitted (CRD allows only enum or null, not ""); test patches it to "upgrade" after setting channel.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: ClusterCurator
+metadata:
+  name: {{ .ClusterName }}
+  namespace: {{ .ClusterNamespace }}
+spec:
+  upgrade:
+    monitorTimeout: 120

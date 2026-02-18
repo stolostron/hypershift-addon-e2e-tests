@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"sigs.k8s.io/yaml"
 
@@ -35,9 +36,15 @@ type TestOptionsContainer struct {
 // TestOptions ...
 // Define options available for Tests to consume
 type TestOptionsT struct {
-	Hub             Hub             `json:"hub"`
-	HostedCluster   Clusters        `json:"clusters"`
-	CloudConnection CloudConnection `json:"credentials,omitempty"`
+	Hub             Hub                 `json:"hub"`
+	HostedCluster   Clusters            `json:"clusters"`
+	CloudConnection CloudConnection     `json:"credentials,omitempty"`
+	ClusterCurator  ClusterCuratorOpts  `json:"clustercurator,omitempty"`
+}
+
+// ClusterCuratorOpts holds options for ClusterCurator tests (e.g. channel-upgrade).
+type ClusterCuratorOpts struct {
+	Channel string `json:"channel,omitempty"`
 }
 
 // Hub ...
@@ -182,6 +189,7 @@ func GetClusterName(provider string) (string, error) {
 	if os.Getenv("HCP_CLUSTER_NAME") != "" {
 		return os.Getenv("HCP_CLUSTER_NAME"), nil
 	}
+	provider = strings.ToLower(provider)
 	switch provider {
 	case "aws":
 		return TestOptions.Options.HostedCluster.AWS.Name, nil
@@ -203,6 +211,7 @@ func GetRegion(provider string) (string, error) {
 	if os.Getenv("HCP_REGION") != "" {
 		return os.Getenv("HCP_REGION"), nil
 	}
+	provider = strings.ToLower(provider)
 	switch provider {
 	case "aws":
 		return TestOptions.Options.HostedCluster.AWS.Region, nil
@@ -217,6 +226,7 @@ func GetNodePoolReplicas(provider string) (string, error) {
 	if os.Getenv("HCP_NODE_POOL_REPLICAS") != "" {
 		return os.Getenv("HCP_NODE_POOL_REPLICAS"), nil
 	}
+	provider = strings.ToLower(provider)
 	switch provider {
 	case "aws":
 		return TestOptions.Options.HostedCluster.AWS.NodePoolReplicas, nil
@@ -231,6 +241,7 @@ func GetBaseDomain(cloud string) (string, error) {
 	if os.Getenv("HCP_BASE_DOMAIN_NAME") != "" {
 		return os.Getenv("HCP_BASE_DOMAIN_NAME"), nil
 	}
+	cloud = strings.ToLower(cloud)
 	switch cloud {
 	case "aws":
 		return TestOptions.Options.HostedCluster.AWS.BaseDomain, nil
@@ -244,6 +255,7 @@ func GetReleaseImage(cloud string) (string, error) {
 	if os.Getenv("HCP_RELEASE_IMAGE") != "" {
 		return os.Getenv("HCP_RELEASE_IMAGE"), nil
 	}
+	cloud = strings.ToLower(cloud)
 	switch cloud {
 	case "aws":
 		return TestOptions.Options.HostedCluster.AWS.ReleaseImage, nil
@@ -277,6 +289,7 @@ func GetInstanceType(cloud string) (string, error) {
 	if os.Getenv("HCP_INSTANCE_TYPE") != "" {
 		return os.Getenv("HCP_INSTANCE_TYPE"), nil
 	}
+	cloud = strings.ToLower(cloud)
 	switch cloud {
 	case "aws":
 		return TestOptions.Options.HostedCluster.AWS.InstanceType, nil
@@ -286,6 +299,7 @@ func GetInstanceType(cloud string) (string, error) {
 }
 
 func GetProviderCreds(cloud string) (string, error) {
+	cloud = strings.ToLower(cloud)
 	switch cloud {
 	case "aws":
 		return TestOptions.Options.HostedCluster.AWS.AWSCreds, nil
@@ -354,6 +368,18 @@ func GetCuratorEnabled() (string, error) {
 		return os.Getenv("CURATOR_ENABLED"), nil
 	}
 	return "false", nil
+}
+
+// GetClusterCuratorChannel returns the channel for ClusterCurator upgrade (e.g. channel-upgrade test).
+// Priority: HCP_UPGRADE_CHANNEL env, then options.clustercurator.channel, else default "fast-4.14".
+func GetClusterCuratorChannel() string {
+	if v := os.Getenv("HCP_UPGRADE_CHANNEL"); v != "" {
+		return v
+	}
+	if v := TestOptions.Options.ClusterCurator.Channel; v != "" {
+		return v
+	}
+	return "fast-4.14"
 }
 
 // GetFIPSEnabled returns if we want to enable FIPS in cluster creation
