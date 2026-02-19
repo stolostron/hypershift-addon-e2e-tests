@@ -22,20 +22,13 @@ const (
 // and that the controller validates channel against status.version.desired.channels.
 var _ = ginkgo.Describe("PR 511 / ACM-26476: ClusterCurator HostedCluster channel update", ginkgo.Label("e2e", labelChannelUpgrade, "PR511", "ACM-26476", TYPE_AWS), func() {
 	var (
-		clusterName    string
-		namespace      string
-		testChannel    string
-		curatorEnabled string
+		clusterName string
+		namespace   string
+		testChannel string
 	)
 
 	ginkgo.BeforeEach(func() {
 		var err error
-		curatorEnabled, err = utils.GetCuratorEnabled()
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		if curatorEnabled != "true" {
-			ginkgo.Skip("CURATOR_ENABLED is not true, skipping channel-upgrade test")
-		}
-
 		clusterName, err = utils.GetClusterName("aws")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(clusterName).NotTo(gomega.BeEmpty(), "HCP_CLUSTER_NAME or options.clusters.aws.clusterName must be set")

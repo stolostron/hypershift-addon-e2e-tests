@@ -28,7 +28,7 @@ Recommended for CI or full validation:
 
 Environment variables that affect the suite (see also README):
 
-- `KUBECONFIG`, `MANAGED_CLUSTER_NAME`, `HCP_CLUSTER_NAME`, `HCP_NAMESPACE`, `HCP_REGION`, `HCP_NODE_POOL_REPLICAS`, `HCP_BASE_DOMAIN_NAME`, `HCP_RELEASE_IMAGE`, `HCP_INSTANCE_TYPE`, `AWS_CREDS`, `PULL_SECRET_FILE` / `PULL_SECRET`, `JUNIT_REPORT_FILE`, options file, etc.
+- `KUBECONFIG`, `MANAGED_CLUSTER_NAME`, `HCP_CLUSTER_NAME`, `HCP_NAMESPACE`, `HCP_REGION`, `HCP_NODE_POOL_REPLICAS`, `HCP_BASE_DOMAIN_NAME`, `HCP_RELEASE_IMAGE`, `HCP_INSTANCE_TYPE`, `AWS_CREDS`, `PULL_SECRET_FILE` / `PULL_SECRET`, `JUNIT_REPORT_FILE`, options file, etc. For control-plane-upgrade: `HCP_UPGRADE_CHANNEL`, `HCP_UPGRADE_DESIRED_UPDATE`, `HCP_UPGRADE_TYPE`.
 
 ---
 
@@ -175,8 +175,30 @@ Each block below is one **Describe**; indented items are **It** (individual test
 | Channel-only update: set spec.upgrade.channel and desiredCuration upgrade, then verify HostedCluster spec.channel and curator condition | (none) | Creates/updates ClusterCurator with `spec.upgrade.channel`, sets `desiredCuration: upgrade`, waits for `hypershift-upgrade-job` condition, and asserts HostedCluster `spec.channel` (cluster-curator-controller PR 511). |
 | Available channels: HostedCluster status.version.desired.channels can be read for validation | (none) | Reads `status.version.desired.channels` from HostedCluster (validation path used by PR 511). |
 
-**When you run “all” tests:** Both run (skipped if `CURATOR_ENABLED != true`).  
+**When you run “all” tests:** Both run.  
 **Run only channel-upgrade:** `--label-filter='channel-upgrade'` or `e2e` to include this Describe.
+
+---
+
+### 10. Control-plane-only upgrade
+
+**Describe:** ClusterCurator HostedCluster control plane only upgrade  
+**Labels:** `e2e`, `control-plane-upgrade`, `AWS`
+
+**Inputs the tester passes:**
+
+| Input | Source | Description |
+|-------|--------|-------------|
+| Cluster to upgrade | `HCP_CLUSTER_NAME` or `options.clusters.aws.clusterName` | Existing HostedCluster name. |
+| Namespace | `HCP_NAMESPACE` or default `clusters` | HostedCluster namespace. |
+| Target channel | `HCP_UPGRADE_CHANNEL` or `options.clustercurator.channel` | e.g. `fast-4.19`. |
+| Desired update (version) | `HCP_UPGRADE_DESIRED_UPDATE` or `options.clustercurator.desiredUpdate` | Target OCP version (e.g. `4.19.22`); maps to `spec.upgrade.desiredUpdate`. |
+| Upgrade type | `HCP_UPGRADE_TYPE` or `options.clustercurator.upgradeType` | `ControlPlane` (control plane only), `NodePools` (node pools only), or empty for both. |
+| Test (It) | Labels | What is tested |
+|-----------|--------|----------------|
+| Control-plane only: set spec.upgrade (channel, desiredUpdate, upgradeType ControlPlane) and desiredCuration upgrade, then verify curator condition and HostedCluster release | (none) | Creates/updates ClusterCurator with channel, desiredUpdate, upgradeType=ControlPlane; sets desiredCuration=upgrade; waits for clustercurator-job; asserts HostedCluster spec.release contains desired version. |
+
+**Run only control-plane-upgrade:** `--label-filter='control-plane-upgrade'`.
 
 ---
 
@@ -190,6 +212,7 @@ Each block below is one **Describe**; indented items are **It** (individual test
 | `ginkgo -v --label-filter='e2e' pkg/test` | Specs that have label `e2e`: channel-upgrade, RHACM4K-21843. (Note: `@e2e` is a different label; metrics and CLI use `@e2e`.) |
 | `ginkgo -v --label-filter='@e2e' pkg/test` | Specs with `@e2e`: CLI Binary Tests, Metrics Tests. |
 | `ginkgo -v --label-filter='channel-upgrade' pkg/test` | Only PR 511 / ACM-26476 channel-upgrade tests. |
+| `ginkgo -v --label-filter='control-plane-upgrade' pkg/test` | Only control-plane-upgrade tests. |
 | `ginkgo -v --label-filter='metrics' pkg/test` | Only Prometheus/metrics tests. |
 | `ginkgo -v --label-filter='@must-gather' pkg/test` | Only must-gather test. |
 | `ginkgo -v --label-filter='AWS' pkg/test` | All AWS-related specs: create, destroy, CLI, RHACM4K-21843, channel-upgrade. |
@@ -201,7 +224,7 @@ Each block below is one **Describe**; indented items are **It** (individual test
 
 - **Platform:** `AWS`, `KubeVirt`
 - **Lifecycle:** `create`, `destroy`, `destroy-one`
-- **E2E / feature:** `e2e`, `@e2e`, `channel-upgrade`, `PR511`, `ACM-26476`, `metrics`, `@must-gather`, `CLI-Links`, `@non-ui`, `@post-upgrade`
+- **E2E / feature:** `e2e`, `@e2e`, `channel-upgrade`, `PR511`, `ACM-26476`, `control-plane-upgrade`, `metrics`, `@must-gather`, `CLI-Links`, `@non-ui`, `@post-upgrade`
 - **Sub-feature:** `console`, `consoleLinks`, `service_monitor`, `sanity`, `capacity`
 
 Combining labels (Ginkgo):

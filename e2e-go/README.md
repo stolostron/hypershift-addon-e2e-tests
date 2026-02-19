@@ -60,8 +60,35 @@ Ginkgo e2e test framework for self-managed hosted control plane using MCE / ACM.
 7. to run PR 511 / ACM-26476 channel-upgrade tests (ClusterCurator HostedCluster channel update):
 
     ```bash
-    export CURATOR_ENABLED=true
     ginkgo -v --label-filter='channel-upgrade' pkg/test
     ```
 
     See `pkg/README.md` for layout and PR 511 test requirements.
+
+8. to run control-plane-upgrade tests (ClusterCurator HostedCluster control plane upgrade only):
+
+    **Required / optional inputs** (same pattern as channel-upgrade, plus upgrade type and desiredUpdate):
+
+    - **Options file** (`resources/options.yaml` or path passed via `--options`):
+      - `options.clustercurator.channel`: target channel for the upgrade (e.g. `fast-4.19`).
+      - `options.clustercurator.upgradeType`: `ControlPlane` (control plane only), `NodePools` (node pools only), or omit/empty for both.
+      - `options.clustercurator.desiredUpdate`: target OCP version for the upgrade (e.g. `4.19.22`); maps to ClusterCurator `spec.upgrade.desiredUpdate`.
+    - **Environment variables** (override options when set):
+      - `KUBECONFIG`: hub kubeconfig (required).
+      - `HCP_CLUSTER_NAME`: existing HostedCluster name to upgrade (or set `options.clusters.aws.clusterName`).
+      - `HCP_NAMESPACE`: namespace of the HostedCluster (default `clusters`).
+      - `HCP_UPGRADE_CHANNEL`: target channel (overrides `options.clustercurator.channel`).
+      - `HCP_UPGRADE_TYPE`: `ControlPlane`, `NodePools`, or unset for both (overrides `options.clustercurator.upgradeType`).
+      - `HCP_UPGRADE_DESIRED_UPDATE`: target OCP version (e.g. `4.19.22`) (overrides `options.clustercurator.desiredUpdate`). **Required** for control-plane upgrade—the controller panics if this is empty.
+
+    Example (control-plane-only upgrade to a specific version):
+
+    ```bash
+    export HCP_CLUSTER_NAME=my-hosted-cluster
+    export HCP_UPGRADE_CHANNEL=fast-4.19
+    export HCP_UPGRADE_TYPE=ControlPlane
+    export HCP_UPGRADE_DESIRED_UPDATE=4.19.22
+    ginkgo -v --label-filter='control-plane-upgrade' pkg/test
+    ```
+
+    Or use `options.yaml` under `options.clustercurator`: set `channel`, `upgradeType: 'ControlPlane'`, and `desiredUpdate: '4.19.22'` and omit the env vars.

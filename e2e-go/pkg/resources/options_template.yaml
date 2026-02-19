@@ -29,6 +29,10 @@ options:
       awsCredName: ''
     secrets:
       pullSecret: ''
-  # ClusterCurator options (e.g. for channel-upgrade test)
+  # ClusterCurator options (e.g. for channel-upgrade, control-plane-upgrade tests)
   clustercurator:
-    channel: 'fast-4.20'
+    channel: 'fast-4.19'
+    # upgradeType: 'ControlPlane' | 'NodePools' | omit/empty for both (control-plane-upgrade test)
+    upgradeType: ''
+    # desiredUpdate: target OCP version for upgrade (e.g. '4.19.22'); maps to spec.upgrade.desiredUpdate
+    desiredUpdate: ''
