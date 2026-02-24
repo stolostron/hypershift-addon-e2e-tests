@@ -92,3 +92,32 @@ Ginkgo e2e test framework for self-managed hosted control plane using MCE / ACM.
     ```
 
     Or use `options.yaml` under `options.clustercurator`: set `channel`, `upgradeType: 'ControlPlane'`, and `desiredUpdate: '4.19.22'` and omit the env vars.
+
+9. to run nodepool-upgrade tests (ClusterCurator NodePools-only upgrade):
+
+    **Required inputs** (desiredUpdate and upgradeType; channel is ignored for NodePools):
+
+    - **Options file** (`resources/options.yaml` or path passed via `--options`):
+      - `options.clustercurator.upgradeType`: `NodePools` (node pools only).
+      - `options.clustercurator.desiredUpdate`: target OCP version for the upgrade (e.g. `4.19.22`); maps to ClusterCurator `spec.upgrade.desiredUpdate`.
+    - **Environment variables** (override options when set):
+      - `KUBECONFIG`: hub kubeconfig (required).
+      - `HCP_CLUSTER_NAME`: existing HostedCluster name to upgrade (or set `options.clusters.aws.clusterName`).
+      - `HCP_NAMESPACE`: namespace of the HostedCluster (default `clusters`).
+      - `HCP_UPGRADE_TYPE`: `NodePools` (overrides `options.clustercurator.upgradeType`).
+      - `HCP_UPGRADE_DESIRED_UPDATE`: target OCP version (e.g. `4.19.22`) (overrides `options.clustercurator.desiredUpdate`). **Required** for nodepool upgrade.
+
+    **Note:** NodePools version cannot exceed the HostedCluster control plane version. Upgrade the control plane first (`control-plane-upgrade`) if needed.
+
+    **Duration:** The nodepool upgrade test requires approximately 30 minutes. Use `--timeout=30m` (ginkgo) or `-timeout=30m` (go test) to avoid suite timeout.
+
+    Example (nodepool-only upgrade):
+
+    ```bash
+    export HCP_CLUSTER_NAME=my-hosted-cluster
+    export HCP_UPGRADE_TYPE=NodePools
+    export HCP_UPGRADE_DESIRED_UPDATE=4.19.22
+    ginkgo -v --timeout=30m --label-filter='nodepool-upgrade' pkg/test
+    ```
+
+    Or use `options.yaml` under `options.clustercurator`: set `upgradeType: 'NodePools'` and `desiredUpdate: '4.19.22'` and omit the env vars.

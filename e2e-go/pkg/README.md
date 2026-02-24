@@ -22,6 +22,9 @@ ginkgo -v --label-filter='channel-upgrade' pkg/test
 # Control-plane-only upgrade
 ginkgo -v --label-filter='control-plane-upgrade' pkg/test
 
+# Nodepool-only upgrade (requires ~30 min; use --timeout=30m)
+ginkgo -v --timeout=30m --label-filter='nodepool-upgrade' pkg/test
+
 # Create / destroy (see repo README for env and options)
 ginkgo -v --label-filter='create' pkg/test
 ginkgo -v --label-filter='destroy' pkg/test
@@ -67,3 +70,25 @@ ClusterCurator upgrade of HostedCluster control plane only (or NodePools only), 
 
 - `utils.GetClusterCuratorUpgradeType()` – returns upgrade type from env or options
 - `utils.GetClusterCuratorDesiredUpdate()` – returns desired update version from env or options
+
+## Nodepool-only upgrade tests
+
+**Label:** `nodepool-upgrade`
+
+ClusterCurator upgrade of NodePools (worker nodes) only, without changing the HostedCluster control plane. Channel is ignored for NodePools upgrades.
+
+**Inputs:**
+
+- Existing HostedCluster with at least one NodePool: `HCP_CLUSTER_NAME` or `options.clusters.aws.clusterName`
+- `HCP_NAMESPACE` or default `clusters`
+- **Desired update (required):** `HCP_UPGRADE_DESIRED_UPDATE` or `options.clustercurator.desiredUpdate` — target OCP version (e.g. `4.19.22`)
+- **Upgrade type:** `HCP_UPGRADE_TYPE` or `options.clustercurator.upgradeType` — must be `NodePools` for this test
+
+**Note:** NodePools version cannot exceed the HostedCluster control plane version. Upgrade the control plane first (`control-plane-upgrade`) if needed.
+
+**Duration:** The nodepool upgrade test requires approximately 30 minutes. Use `--timeout=30m` (ginkgo) or `-timeout=30m` (go test).
+
+**Utils:**
+
+- `utils.ListNodePoolsForHostedCluster()` – list NodePools belonging to a HostedCluster
+- `utils.GetNodePoolSpecRelease()` – read NodePool `spec.release.image`

@@ -28,7 +28,7 @@ Recommended for CI or full validation:
 
 Environment variables that affect the suite (see also README):
 
-- `KUBECONFIG`, `MANAGED_CLUSTER_NAME`, `HCP_CLUSTER_NAME`, `HCP_NAMESPACE`, `HCP_REGION`, `HCP_NODE_POOL_REPLICAS`, `HCP_BASE_DOMAIN_NAME`, `HCP_RELEASE_IMAGE`, `HCP_INSTANCE_TYPE`, `AWS_CREDS`, `PULL_SECRET_FILE` / `PULL_SECRET`, `JUNIT_REPORT_FILE`, options file, etc. For control-plane-upgrade: `HCP_UPGRADE_CHANNEL`, `HCP_UPGRADE_DESIRED_UPDATE`, `HCP_UPGRADE_TYPE`.
+- `KUBECONFIG`, `MANAGED_CLUSTER_NAME`, `HCP_CLUSTER_NAME`, `HCP_NAMESPACE`, `HCP_REGION`, `HCP_NODE_POOL_REPLICAS`, `HCP_BASE_DOMAIN_NAME`, `HCP_RELEASE_IMAGE`, `HCP_INSTANCE_TYPE`, `AWS_CREDS`, `PULL_SECRET_FILE` / `PULL_SECRET`, `JUNIT_REPORT_FILE`, options file, etc. For control-plane-upgrade: `HCP_UPGRADE_CHANNEL`, `HCP_UPGRADE_DESIRED_UPDATE`, `HCP_UPGRADE_TYPE`. For nodepool-upgrade: `HCP_UPGRADE_DESIRED_UPDATE`, `HCP_UPGRADE_TYPE`.
 
 ---
 
@@ -202,6 +202,32 @@ Each block below is one **Describe**; indented items are **It** (individual test
 
 ---
 
+### 11. Nodepool-only upgrade
+
+**Describe:** ClusterCurator NodePools-only upgrade  
+**Labels:** `e2e`, `nodepool-upgrade`, `AWS`
+
+**Inputs the tester passes:**
+
+| Input | Source | Description |
+|-------|--------|-------------|
+| Cluster to upgrade | `HCP_CLUSTER_NAME` or `options.clusters.aws.clusterName` | Existing HostedCluster name. |
+| Namespace | `HCP_NAMESPACE` or default `clusters` | HostedCluster namespace. |
+| Desired update (version) | `HCP_UPGRADE_DESIRED_UPDATE` or `options.clustercurator.desiredUpdate` | Target OCP version (e.g. `4.19.22`); maps to `spec.upgrade.desiredUpdate`. |
+| Upgrade type | `HCP_UPGRADE_TYPE` or `options.clustercurator.upgradeType` | Must be `NodePools` for this test. |
+
+| Test (It) | Labels | What is tested |
+|-----------|--------|----------------|
+| Nodepool only: set spec.upgrade (desiredUpdate, upgradeType NodePools) and desiredCuration upgrade, then verify curator condition and NodePool release | (none) | Creates/updates ClusterCurator with desiredUpdate, upgradeType=NodePools; sets desiredCuration=upgrade; waits for clustercurator-job; asserts all NodePools spec.release contains desired version. HostedCluster control plane is unchanged. |
+
+**Note:** NodePools version cannot exceed the HostedCluster control plane version. Upgrade the control plane first if needed.
+
+**Duration:** The nodepool upgrade test requires approximately 30 minutes. Use `--timeout=30m` (ginkgo) or `-timeout=30m` (go test) to avoid suite timeout.
+
+**Run only nodepool-upgrade:** `ginkgo -v --timeout=30m --label-filter='nodepool-upgrade' pkg/test` or `go test -v -timeout=30m ./pkg/test/... -ginkgo.label-filter='nodepool-upgrade'`.
+
+---
+
 ## Summary: what runs when
 
 | Command | What runs |
@@ -213,6 +239,7 @@ Each block below is one **Describe**; indented items are **It** (individual test
 | `ginkgo -v --label-filter='@e2e' pkg/test` | Specs with `@e2e`: CLI Binary Tests, Metrics Tests. |
 | `ginkgo -v --label-filter='channel-upgrade' pkg/test` | Only PR 511 / ACM-26476 channel-upgrade tests. |
 | `ginkgo -v --label-filter='control-plane-upgrade' pkg/test` | Only control-plane-upgrade tests. |
+| `ginkgo -v --timeout=30m --label-filter='nodepool-upgrade' pkg/test` | Only nodepool-upgrade tests (requires ~30 min). |
 | `ginkgo -v --label-filter='metrics' pkg/test` | Only Prometheus/metrics tests. |
 | `ginkgo -v --label-filter='@must-gather' pkg/test` | Only must-gather test. |
 | `ginkgo -v --label-filter='AWS' pkg/test` | All AWS-related specs: create, destroy, CLI, RHACM4K-21843, channel-upgrade. |
@@ -224,7 +251,7 @@ Each block below is one **Describe**; indented items are **It** (individual test
 
 - **Platform:** `AWS`, `KubeVirt`
 - **Lifecycle:** `create`, `destroy`, `destroy-one`
-- **E2E / feature:** `e2e`, `@e2e`, `channel-upgrade`, `PR511`, `ACM-26476`, `control-plane-upgrade`, `metrics`, `@must-gather`, `CLI-Links`, `@non-ui`, `@post-upgrade`
+- **E2E / feature:** `e2e`, `@e2e`, `channel-upgrade`, `PR511`, `ACM-26476`, `control-plane-upgrade`, `nodepool-upgrade`, `metrics`, `@must-gather`, `CLI-Links`, `@non-ui`, `@post-upgrade`
 - **Sub-feature:** `console`, `consoleLinks`, `service_monitor`, `sanity`, `capacity`
 
 Combining labels (Ginkgo):
