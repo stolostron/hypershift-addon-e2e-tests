@@ -18,6 +18,12 @@ var HostedClustersGVR = schema.GroupVersionResource{
 	Resource: "hostedclusters",
 }
 
+var NodePoolsGVR = schema.GroupVersionResource{
+	Group:    "hypershift.openshift.io",
+	Version:  "v1beta1",
+	Resource: "nodepools",
+}
+
 // GetHostedClustersList gets the list of HostedClusters of some type with some label selector
 // If type and label selector are not provided, it returns all HostedClusters
 func GetHostedClustersList(hubClientDynamic dynamic.Interface, hostedClusterType string, labelSelector string) ([]*unstructured.Unstructured, error) {
@@ -176,4 +182,49 @@ func GetHostedClusterAvailableChannels(hubClientDynamic dynamic.Interface, clust
 		out[i] = c.(string)
 	}
 	return out, nil
+}
+
+// ListNodePoolsForHostedCluster returns all NodePools in the namespace that belong to the given HostedCluster
+// (spec.clusterName matches clusterName). Used for nodepool-upgrade test verification.
+func ListNodePoolsForHostedCluster(hubClientDynamic dynamic.Interface, namespace, clusterName string) ([]*unstructured.Unstructured, error) {
+	list, err := ListResource(hubClientDynamic, NodePoolsGVR, namespace, "")
+	if err != nil {
+		return nil, err
+	}
+	out := []*unstructured.Unstructured{}
+	for _, np := range list {
+		spec, ok := np.Object["spec"].(map[string]interface{})
+		if !ok || spec["clusterName"] == nil {
+			continue
+		}
+		npClusterName, ok := spec["clusterName"].(string)
+		if !ok || npClusterName != clusterName {
+			continue
+		}
+		out = append(out, np)
+	}
+	return out, nil
+}
+
+// GetNodePoolSpecRelease returns the NodePool spec.release.image string.
+// Used to verify nodepool-upgrade; controller sets this from spec.upgrade.desiredUpdate.
+func GetNodePoolSpecRelease(np *unstructured.Unstructured) (string, error) {
+	spec, ok := np.Object["spec"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("NodePool %s has no spec", np.GetName())
+	}
+	if spec["release"] == nil {
+		return "", nil
+	}
+	release, ok := spec["release"].(map[string]interface{})
+	if !ok {
+		if s, ok := spec["release"].(string); ok {
+			return s, nil
+		}
+		return "", nil
+	}
+	if release["image"] != nil {
+		return release["image"].(string), nil
+	}
+	return "", nil
 }
