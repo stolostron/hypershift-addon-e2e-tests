@@ -5,7 +5,7 @@ set -o errexit
 set -o pipefail
 
 ODF_INSTALL_NAMESPACE=openshift-storage
-ODF_OPERATOR_CHANNEL="${ODF_OPERATOR_CHANNEL:-'stable-4.20'}"
+ODF_OPERATOR_CHANNEL="${ODF_OPERATOR_CHANNEL:-'stable-4.22'}"
 ODF_SUBSCRIPTION_NAME="${ODF_SUBSCRIPTION_NAME:-'odf-operator'}"
 ODF_BACKEND_STORAGE_CLASS="${ODF_BACKEND_STORAGE_CLASS:-'gp3-csi'}"
 ODF_VOLUME_SIZE="${ODF_VOLUME_SIZE:-100}Gi"
@@ -45,7 +45,7 @@ metadata:
   name: odf-operator
   namespace: openshift-storage
 spec:
-  channel: stable-4.20
+  channel: ${ODF_OPERATOR_CHANNEL}
   installPlanApproval: Automatic
   name: odf-operator
   source: redhat-operators
@@ -90,6 +90,9 @@ echo "Preparing nodes"
 oc label nodes cluster.ocs.openshift.io/openshift-storage='' \
   --selector='node-role.kubernetes.io/worker' --overwrite
 
+echo "Waiting for StorageCluster CRD to be established"
+oc wait crd storageclusters.ocs.openshift.io --for=condition=Established --timeout='5m'
+
 echo "Create StorageCluster"
 cat <<EOF | oc apply -f -
 kind: StorageCluster
@@ -120,12 +123,12 @@ spec:
       count: 6
       dataPVCTemplate:
         spec:
-          storageClassName: gp3-csi
+          storageClassName: ${ODF_BACKEND_STORAGE_CLASS}
           accessModes:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 100Gi
+              storage: ${ODF_VOLUME_SIZE}
           volumeMode: Block
       placement: {}
       portable: false
@@ -141,6 +144,16 @@ oc wait "storagecluster.ocs.openshift.io/ocs-storagecluster"  \
    -n $ODF_INSTALL_NAMESPACE --for=condition='Available' --timeout='10m'
 
 echo "ODF/OCS Operator is deployed successfully"
+
+echo "Waiting for ocs-storagecluster-ceph-rbd storage class"
+for ((i=1; i <= 60; i++)); do
+    if oc get sc ocs-storagecluster-ceph-rbd &>/dev/null; then
+        echo "ocs-storagecluster-ceph-rbd storage class is available"
+        break
+    fi
+    echo "Try ${i}/60: ocs-storagecluster-ceph-rbd not yet created. Checking again in 10 seconds"
+    sleep 10
+done
 
 # Setting ocs-storagecluster-ceph-rbd the default storage class
 for item in $(oc get sc --no-headers | awk '{print $1}'); do
@@ -163,7 +176,7 @@ oc apply -f - <<EOF
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
-  name: openshift-cnv-group
+  name: openshift-cnv
   namespace: openshift-cnv
 spec:
   targetNamespaces:
@@ -192,13 +205,14 @@ RETRIES=30
 CSV=
 for i in $(seq ${RETRIES}); do
   if [[ -z ${CSV} ]]; then
-    CSV=$(oc get subscription.operators.coreos.com -n openshift-cnv kubevirt-hyperconverged -o jsonpath='{.status.installedCSV}')
+    CSV=$(oc get subscription.operators.coreos.com -n openshift-cnv kubevirt-hyperconverged -o jsonpath='{.status.installedCSV}' || true)
   fi
   if [[ -z ${CSV} ]]; then
     echo "Try ${i}/${RETRIES}: can't get the CSV yet. Checking again in 30 seconds"
     sleep 30
+    continue
   fi
-  if [[ $(oc get csv -n openshift-cnv ${CSV} -o jsonpath='{.status.phase}') == "Succeeded" ]]; then
+  if [[ $(oc get csv -n openshift-cnv "${CSV}" -o jsonpath='{.status.phase}') == "Succeeded" ]]; then
     echo "CNV is deployed"
     break
   else
@@ -225,8 +239,7 @@ metadata:
   name: kubevirt-hyperconverged
   namespace: openshift-cnv
 spec:
-  featureGates:
-    enableCommonBootImageImport: false
+  enableCommonBootImageImport: false
   logVerbosityConfig:
     kubevirt:
       virtLauncher: 8

@@ -15,10 +15,16 @@ echo "$(date) HC_CLI_OS = ${HC_CLI_OS}"
 echo "$(date) HC_CLI_ARCH = ${HC_CLI_ARCH}" 
 
 echo "$(date) Curl, extract, and move to CLI to PATH"
-echo "curl -ko ${HCP_BINARY_NAME}.tar.gz https://$(oc get routes ${HCP_BINARY_NAME}-cli-download -n ${MCE_NS} -o jsonpath="{.spec.host}")/${HC_CLI_OS}/${HC_CLI_ARCH}/${HCP_BINARY_NAME}.tar.gz"
-curl -ko ${HCP_BINARY_NAME}.tar.gz https://$(oc get routes ${HCP_BINARY_NAME}-cli-download -n ${MCE_NS} -o jsonpath="{.spec.host}")/${HC_CLI_OS}/${HC_CLI_ARCH}/${HCP_BINARY_NAME}.tar.gz
+# The cli-download server now serves flat filenames (hcp-<os>-<arch>.tar.gz) at the
+# route root, not the old nested /<os>/<arch>/hcp.tar.gz path. Build the URL to match.
+HCP_CLI_HOST=$(oc get routes ${HCP_BINARY_NAME}-cli-download -n ${MCE_NS} -o jsonpath="{.spec.host}")
+HCP_CLI_URL="https://${HCP_CLI_HOST}/${HCP_BINARY_NAME}-${HC_CLI_OS}-${HC_CLI_ARCH}.tar.gz"
+echo "curl -kfLo ${HCP_BINARY_NAME}.tar.gz ${HCP_CLI_URL}"
+# -f makes curl fail (non-zero exit) on HTTP errors like 404 instead of saving the
+# error page and failing later at the untar step with a confusing gzip error.
+curl -kfLo ${HCP_BINARY_NAME}.tar.gz "${HCP_CLI_URL}"
 if [ $? -ne 0 ]; then
-    echo "$(date) failed to curl ${HCP_BINARY_NAME}.tar.gz"
+    echo "$(date) failed to curl ${HCP_BINARY_NAME}.tar.gz from ${HCP_CLI_URL}"
     exit 1
 fi
 
