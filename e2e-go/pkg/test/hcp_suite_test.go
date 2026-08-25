@@ -188,6 +188,22 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 	config.Region, err = utils.GetRegion(TYPE_AWS)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
+	// The hcp CLI's AWS SDK (v2) needs a region in its environment to resolve the
+	// STS AssumeRole endpoint when using --sts-creds; the --region flag only sets
+	// the cluster infra region, not the SDK's STS client. Without this the CLI
+	// fails with "AssumeRole ... Invalid Configuration: Missing Region". Every
+	// hcp exec.Command below inherits this process env (nil cmd.Env), so set it once.
+	// Prefer HCP_REGION (exported by the CI create stage); fall back to the region
+	// resolved above from options.yaml.
+	awsRegion := os.Getenv("HCP_REGION")
+	if awsRegion == "" {
+		awsRegion = config.Region
+	}
+	if awsRegion != "" {
+		os.Setenv("AWS_REGION", awsRegion)
+		os.Setenv("AWS_DEFAULT_REGION", awsRegion)
+	}
+
 	// GetNodePoolReplicas with error handling
 	config.NodePoolReplicas, err = utils.GetNodePoolReplicas(TYPE_AWS)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
