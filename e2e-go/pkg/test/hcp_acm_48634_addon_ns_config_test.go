@@ -38,10 +38,17 @@ var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add
 			ginkgo.Skip(fmt.Sprintf("configureMceImport is not enabled on %s/%s; skipping addon-ns-config assertions", mceNamespace, utils.HypershiftAddonDeployConfigName))
 		}
 
-		cfg, err := utils.GetResource(dynamicClient, utils.AddOnDeploymentConfigGVR, mceNamespace, utils.AddonNsConfigName)
-		gomega.Expect(err).ShouldNot(gomega.HaveOccurred(),
+		// The hub discovery controller creates/updates addon-ns-config asynchronously after
+		// configureMceImport is enabled, so poll for it instead of requiring it on the first try.
+		gomega.Eventually(func() error {
+			cfg, err := utils.GetResource(dynamicClient, utils.AddOnDeploymentConfigGVR, mceNamespace, utils.AddonNsConfigName)
+			if err != nil {
+				return err
+			}
+			addonNsConfig = cfg
+			return nil
+		}, eventuallyTimeoutShort, eventuallyInterval).ShouldNot(gomega.HaveOccurred(),
 			fmt.Sprintf("addon-ns-config AddOnDeploymentConfig must exist in namespace %s when configureMceImport is enabled", mceNamespace))
-		addonNsConfig = cfg
 	})
 
 	ginkgo.It("sets agentInstallNamespace to the discovery namespace", func() {
