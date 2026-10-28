@@ -6,6 +6,7 @@ import (
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/stolostron/hypershift-addon-e2e-tests/e2e-go/pkg/utils"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -38,9 +39,8 @@ var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add
 		}
 
 		cfg, err := utils.GetResource(dynamicClient, utils.AddOnDeploymentConfigGVR, mceNamespace, utils.AddonNsConfigName)
-		if err != nil {
-			ginkgo.Skip(fmt.Sprintf("addon-ns-config AddOnDeploymentConfig not found in namespace %s: %v", mceNamespace, err))
-		}
+		gomega.Expect(err).ShouldNot(gomega.HaveOccurred(),
+			fmt.Sprintf("addon-ns-config AddOnDeploymentConfig must exist in namespace %s when configureMceImport is enabled", mceNamespace))
 		addonNsConfig = cfg
 	})
 
@@ -67,9 +67,8 @@ var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add
 			addonName := addonName
 			ginkgo.By(fmt.Sprintf("Check ClusterManagementAddOn %s references addon-ns-config in %s", addonName, mceNamespace), func() {
 				cma, err := utils.GetResource(dynamicClient, utils.ClusterManagementAddOnGVR, "", addonName)
-				if err != nil {
-					ginkgo.Skip(fmt.Sprintf("ClusterManagementAddOn %s not found: %v", addonName, err))
-				}
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred(),
+					fmt.Sprintf("ClusterManagementAddOn %s must exist when ACM is installed", addonName))
 				references, err := utils.ClusterManagementAddOnReferencesConfig(cma, mceNamespace, utils.AddonNsConfigName)
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 				gomega.Expect(references).Should(gomega.BeTrue(),
@@ -84,7 +83,10 @@ var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add
 func isMceImportConfigured(namespace string) (bool, error) {
 	deployCfg, err := utils.GetResource(dynamicClient, utils.AddOnDeploymentConfigGVR, namespace, utils.HypershiftAddonDeployConfigName)
 	if err != nil {
-		return false, nil
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
 	}
 	value, found, err := utils.GetAddOnDeploymentConfigCustomizedVariable(deployCfg, utils.ConfigureMceImportVar)
 	if err != nil || !found {
