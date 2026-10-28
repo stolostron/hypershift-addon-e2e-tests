@@ -21,4 +21,13 @@ const (
 	TYPE_AWS                    = "AWS"
 	TYPE_KUBEVIRT               = "KubeVirt"
 	TYPE_AGENT                  = "Agent"
+
+	AddonNsConfigName                  = "addon-ns-config"
+	DiscoveryAgentInstallNamespace     = "open-cluster-management-agent-addon-discovery"
+	EnableSyncLabelsToClusterClaimsVar = "enableSyncLabelsToClusterClaims"
+	WorkManagerAddonName               = "work-manager"
+	ManagedServiceAccountAddonName     = "managed-serviceaccount"
+	ClusterProxyAddonName              = "cluster-proxy"
+	HypershiftAddonDeployConfigName    = "hypershift-addon-deploy-config"
+	ConfigureMceImportVar              = "configureMceImport"
 )

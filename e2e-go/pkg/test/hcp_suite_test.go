@@ -45,9 +45,11 @@ type Config struct {
 const (
 	eventuallyTimeout      = 30 * time.Minute
 	eventuallyTimeoutShort = 10 * time.Minute
-	eventuallyInterval     = 5 * time.Second
-	TYPE_AWS               = "AWS"
-	TYPE_KUBEVIRT          = "KubeVirt"
+	// acm48634EventuallyTimeout bounds addon-ns-config / CMA polling for ACM-48634 (shorter than eventuallyTimeoutShort).
+	acm48634EventuallyTimeout = 2 * time.Minute
+	eventuallyInterval        = 5 * time.Second
+	TYPE_AWS                  = "AWS"
+	TYPE_KUBEVIRT             = "KubeVirt"
 )
 
 var (
