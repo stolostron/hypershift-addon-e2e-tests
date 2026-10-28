@@ -39,16 +39,19 @@ var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add
 		}
 
 		// The hub discovery controller creates/updates addon-ns-config asynchronously after
-		// configureMceImport is enabled, so poll for it instead of requiring it on the first try.
+		// configureMceImport is enabled; poll until spec content converges, not just until GET succeeds.
 		gomega.Eventually(func() error {
 			cfg, err := utils.GetResource(dynamicClient, utils.AddOnDeploymentConfigGVR, mceNamespace, utils.AddonNsConfigName)
 			if err != nil {
 				return err
 			}
+			if err := addonNsConfigReady(cfg); err != nil {
+				return err
+			}
 			addonNsConfig = cfg
 			return nil
 		}, eventuallyTimeoutShort, eventuallyInterval).ShouldNot(gomega.HaveOccurred(),
-			fmt.Sprintf("addon-ns-config AddOnDeploymentConfig must exist in namespace %s when configureMceImport is enabled", mceNamespace))
+			fmt.Sprintf("addon-ns-config AddOnDeploymentConfig must be fully configured in namespace %s when configureMceImport is enabled", mceNamespace))
 	})
 
 	ginkgo.It("sets agentInstallNamespace to the discovery namespace", func() {
@@ -70,20 +73,51 @@ var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add
 	})
 
 	ginkgo.It("is referenced by the work-manager, managed-serviceaccount and cluster-proxy ClusterManagementAddOn install strategies", func() {
-		for _, addonName := range []string{utils.WorkManagerAddonName, utils.ManagedServiceAccountAddonName, utils.ClusterProxyAddonName} {
-			addonName := addonName
-			ginkgo.By(fmt.Sprintf("Check ClusterManagementAddOn %s references addon-ns-config in %s", addonName, mceNamespace), func() {
-				cma, err := utils.GetResource(dynamicClient, utils.ClusterManagementAddOnGVR, "", addonName)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred(),
-					fmt.Sprintf("ClusterManagementAddOn %s must exist when ACM is installed", addonName))
-				references, err := utils.ClusterManagementAddOnReferencesConfig(cma, mceNamespace, utils.AddonNsConfigName)
-				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-				gomega.Expect(references).Should(gomega.BeTrue(),
-					fmt.Sprintf("ClusterManagementAddOn %s should reference addon-ns-config in namespace %s", addonName, mceNamespace))
-			})
-		}
+		ginkgo.By("Wait for ClusterManagementAddOn install strategies to reference addon-ns-config", func() {
+			gomega.Eventually(func() error {
+				return clusterManagementAddOnsReferenceAddonNsConfig()
+			}, eventuallyTimeoutShort, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+		})
 	})
 })
+
+// addonNsConfigReady returns nil when addon-ns-config has the discovery namespace and label-sync disable set.
+func addonNsConfigReady(cfg *unstructured.Unstructured) error {
+	ns, found, err := utils.GetAddOnDeploymentConfigAgentInstallNamespace(cfg)
+	if err != nil {
+		return err
+	}
+	if !found || ns != utils.DiscoveryAgentInstallNamespace {
+		return fmt.Errorf("agentInstallNamespace not ready: found=%v value=%q", found, ns)
+	}
+
+	value, found, err := utils.GetAddOnDeploymentConfigCustomizedVariable(cfg, utils.EnableSyncLabelsToClusterClaimsVar)
+	if err != nil {
+		return err
+	}
+	if !found || value != "false" {
+		return fmt.Errorf("%s not ready: found=%v value=%q", utils.EnableSyncLabelsToClusterClaimsVar, found, value)
+	}
+
+	return nil
+}
+
+func clusterManagementAddOnsReferenceAddonNsConfig() error {
+	for _, addonName := range []string{utils.WorkManagerAddonName, utils.ManagedServiceAccountAddonName, utils.ClusterProxyAddonName} {
+		cma, err := utils.GetResource(dynamicClient, utils.ClusterManagementAddOnGVR, "", addonName)
+		if err != nil {
+			return fmt.Errorf("ClusterManagementAddOn %s: %w", addonName, err)
+		}
+		references, err := utils.ClusterManagementAddOnReferencesConfig(cma, mceNamespace, utils.AddonNsConfigName)
+		if err != nil {
+			return err
+		}
+		if !references {
+			return fmt.Errorf("ClusterManagementAddOn %s does not reference addon-ns-config in %s yet", addonName, mceNamespace)
+		}
+	}
+	return nil
+}
 
 // isMceImportConfigured reports whether configureMceImport=true is set on the
 // hypershift-addon-deploy-config AddOnDeploymentConfig in the given MCE namespace.
