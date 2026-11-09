@@ -25,6 +25,12 @@ import (
 // BeforeAll polls until addon-ns-config matches addonNsConfigReady (no separate Its for those fields).
 var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add-ons and disable ClusterClaim label sync when ACM manages an imported MCE cluster",
 	ginkgo.Label("e2e", "@non-ui", "ACM-48634"), ginkgo.Serial, ginkgo.Ordered, func() {
+		var (
+			priorConfigureMceImport          string
+			priorConfigureMceImportFound     bool
+			configureMceImportToggledForTest bool
+		)
+
 		ginkgo.BeforeAll(func() {
 			hasACM, err := utils.IsACMInstalled(dynamicClient)
 			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
@@ -32,9 +38,15 @@ var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add
 				ginkgo.Skip("ACM is not installed on this hub; addon-ns-config is only created when ACM manages an imported MCE cluster")
 			}
 
+			deployCfg, err := utils.GetResource(dynamicClient, utils.AddOnDeploymentConfigGVR, mceNamespace, utils.HypershiftAddonDeployConfigName)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			priorConfigureMceImport, priorConfigureMceImportFound, err = utils.GetAddOnDeploymentConfigCustomizedVariable(deployCfg, utils.ConfigureMceImportVar)
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
 			ginkgo.By(fmt.Sprintf("Enable %s on %s/%s", utils.ConfigureMceImportVar, mceNamespace, utils.HypershiftAddonDeployConfigName), func() {
 				err := utils.SetAddOnDeploymentConfigCustomizedVariable(dynamicClient, mceNamespace, utils.HypershiftAddonDeployConfigName, utils.ConfigureMceImportVar, "true")
 				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+				configureMceImportToggledForTest = !priorConfigureMceImportFound || priorConfigureMceImport != "true"
 			})
 
 			// The hub discovery controller creates/updates addon-ns-config asynchronously after
@@ -47,6 +59,20 @@ var _ = ginkgo.Describe("ACM-48634: addon-ns-config should isolate discovery add
 				return addonNsConfigReady(cfg)
 			}, acm48634EventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred(),
 				fmt.Sprintf("addon-ns-config AddOnDeploymentConfig must be fully configured in namespace %s when configureMceImport is enabled", mceNamespace))
+		})
+
+		ginkgo.AfterAll(func() {
+			if !configureMceImportToggledForTest {
+				return
+			}
+			restore := "false"
+			if priorConfigureMceImportFound {
+				restore = priorConfigureMceImport
+			}
+			ginkgo.By(fmt.Sprintf("Restore %s on %s/%s to %q", utils.ConfigureMceImportVar, mceNamespace, utils.HypershiftAddonDeployConfigName, restore), func() {
+				err := utils.SetAddOnDeploymentConfigCustomizedVariable(dynamicClient, mceNamespace, utils.HypershiftAddonDeployConfigName, utils.ConfigureMceImportVar, restore)
+				gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			})
 		})
 
 		ginkgo.It("is referenced by the work-manager, managed-serviceaccount and cluster-proxy ClusterManagementAddOn install strategies", func() {
