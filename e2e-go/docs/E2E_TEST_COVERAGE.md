@@ -165,7 +165,21 @@ Each block below is one **Describe**; indented items are **It** (individual test
 
 ---
 
-### 9. `hcp_channel_upgrade_test.go`
+### 9. `hcp_clusterclaim_override_test.go`
+
+**Describe:** ACM-48634: addon-ns-config should isolate discovery add-ons and disable ClusterClaim label sync when ACM manages an imported MCE cluster  
+**Labels:** `e2e`, `@non-ui`, `ACM-48634`
+
+| Test (It) | Labels | What is tested |
+|-----------|--------|----------------|
+| is referenced by the work-manager, managed-serviceaccount and cluster-proxy ClusterManagementAddOn install strategies | (none) | **BeforeAll:** skips if ACM is not installed; sets `configureMceImport=true` on `hypershift-addon-deploy-config` in the MCE namespace when not already enabled (restores prior value in **AfterAll**); polls until `addon-ns-config` has discovery agent install namespace and `enableSyncLabelsToClusterClaims=false`. **It:** waits until `work-manager`, `managed-serviceaccount`, and `cluster-proxy` ClusterManagementAddOns reference `addon-ns-config` in install strategy configs. |
+
+**When you run “all” tests:** Runs on ACM+MCE hubs; skips if ACM is absent.  
+**Run only this:** from `e2e-go/`: `go test ./pkg/test -run TestE2e -ginkgo.label-filter='ACM-48634' -v -count=1` (or `ginkgo -v --label-filter='ACM-48634' pkg/test`). Label filter limits specs; **`SynchronizedBeforeSuite` still runs** (same as other tests in this package).
+
+---
+
+### 10. `hcp_channel_upgrade_test.go`
 
 **Describe:** PR 511 / ACM-26476: ClusterCurator HostedCluster channel update  
 **Labels:** `e2e`, `channel-upgrade`, `PR511`, `ACM-26476`, `AWS`
@@ -180,7 +194,7 @@ Each block below is one **Describe**; indented items are **It** (individual test
 
 ---
 
-### 10. Control-plane-only upgrade
+### 11. Control-plane-only upgrade
 
 **Describe:** ClusterCurator HostedCluster control plane only upgrade  
 **Labels:** `e2e`, `control-plane-upgrade`, `AWS`
@@ -202,7 +216,7 @@ Each block below is one **Describe**; indented items are **It** (individual test
 
 ---
 
-### 11. Nodepool-only upgrade
+### 12. Nodepool-only upgrade
 
 **Describe:** ClusterCurator NodePools-only upgrade  
 **Labels:** `e2e`, `nodepool-upgrade`, `AWS`
@@ -232,10 +246,11 @@ Each block below is one **Describe**; indented items are **It** (individual test
 
 | Command | What runs |
 |---------|-----------|
-| `ginkgo -v pkg/test` | **Everything**: suite bootstrap + all Describes above (create, destroy, CLI, metrics, must-gather, S3 secret, channel-upgrade). |
+| `ginkgo -v pkg/test` | **Everything**: suite bootstrap + all Describes above (create, destroy, CLI, metrics, must-gather, S3 secret, RHACM4K-21843, ACM-48634, channel-upgrade). |
 | `ginkgo -v --label-filter='create' pkg/test` | Only create Its (AWS and/or KubeVirt depending on labels). |
 | `ginkgo -v --label-filter='destroy' pkg/test` | Only destroy Its (all AWS, all KubeVirt, destroy-one for each). |
-| `ginkgo -v --label-filter='e2e' pkg/test` | Specs that have label `e2e`: channel-upgrade, RHACM4K-21843. (Note: `@e2e` is a different label; metrics and CLI use `@e2e`.) |
+| `ginkgo -v --label-filter='e2e' pkg/test` | Specs that have label `e2e`: channel-upgrade, RHACM4K-21843, ACM-48634 (clusterclaim override). (Note: `@e2e` is a different label; metrics and CLI use `@e2e`.) |
+| `go test ./pkg/test -run TestE2e -ginkgo.label-filter='ACM-48634' -v -count=1` (from `e2e-go/`) | Only ACM-48634 hub `addon-ns-config` / ClusterManagementAddOn wiring checks. |
 | `ginkgo -v --label-filter='@e2e' pkg/test` | Specs with `@e2e`: CLI Binary Tests, Metrics Tests. |
 | `ginkgo -v --label-filter='channel-upgrade' pkg/test` | Only PR 511 / ACM-26476 channel-upgrade tests. |
 | `ginkgo -v --label-filter='control-plane-upgrade' pkg/test` | Only control-plane-upgrade tests. |
@@ -251,7 +266,7 @@ Each block below is one **Describe**; indented items are **It** (individual test
 
 - **Platform:** `AWS`, `KubeVirt`
 - **Lifecycle:** `create`, `destroy`, `destroy-one`
-- **E2E / feature:** `e2e`, `@e2e`, `channel-upgrade`, `PR511`, `ACM-26476`, `control-plane-upgrade`, `nodepool-upgrade`, `metrics`, `@must-gather`, `CLI-Links`, `@non-ui`, `@post-upgrade`
+- **E2E / feature:** `e2e`, `@e2e`, `channel-upgrade`, `PR511`, `ACM-26476`, `ACM-48634`, `control-plane-upgrade`, `nodepool-upgrade`, `metrics`, `@must-gather`, `CLI-Links`, `@non-ui`, `@post-upgrade`
 - **Sub-feature:** `console`, `consoleLinks`, `service_monitor`, `sanity`, `capacity`
 
 Combining labels (Ginkgo):
