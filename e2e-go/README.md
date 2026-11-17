@@ -2,6 +2,58 @@
 
 Ginkgo e2e test framework for self-managed hosted control plane using MCE / ACM. Currently supports AWS only.
 
+## HCP proxy integration (ACM-38016)
+
+The `hcp-proxy` label runs hub APIService requests through cluster-proxy and
+checks the resulting resources on the hosting cluster. These specs target MCE/ACM
+5.1 or newer because the finalizers, version, and validate subresources were
+introduced in 5.1. Run this label only on a hub with the HCP proxy APIService,
+an Available `cluster-proxy` ManagedClusterAddOn, and Hypershift HostedCluster
+and NodePool CRDs on the hosting cluster. The hub kubeconfig identity must have
+`managedcluster:admin` access to the hosting cluster.
+
+```bash
+export KUBECONFIG=/path/to/hub-kubeconfig
+export HCP_PROXY_HOSTING_CLUSTER=local-cluster
+# Required when the hosting cluster is separate from the hub:
+export HCP_PROXY_SPOKE_KUBECONFIG=/path/to/hosting-cluster-kubeconfig
+ginkgo -v --label-filter='hcp-proxy' pkg/test
+```
+
+Individual stories can be run with their Jira labels (`ACM-37268`,
+`ACM-37269`, `ACM-39216`, `ACM-39226`, `ACM-39227`, `ACM-39228`, or
+`ACM-42875`), for example:
+
+```bash
+ginkgo -v --label-filter='ACM-39216' pkg/test
+```
+
+When the label filter selects only `hcp-proxy` specs, the suite uses a minimal
+proxy-only bootstrap (kubeconfig, API clients, cluster-proxy availability, and an
+optional options-file release image). It skips cleanly if no hub kubeconfig is
+available. If the filter also selects any non-proxy spec, the normal full-suite
+AWS/options bootstrap still runs.
+
+The built-in request uses a `None` platform HostedCluster, managed etcd with an
+8Gi PersistentVolume, and a zero-replica NodePool, so it tests proxy resource
+handling without provisioning cloud infrastructure. Pre-create validation is a
+caller flow: the suite calls the read-only `GET .../validate` endpoint before a
+successful POST, and stops before POST when validation reports a duplicate name
+or incompatible architecture. Create specs require a release image from
+`HCP_PROXY_RELEASE_IMAGE`, the existing options file, or a full request template;
+otherwise they skip with an actionable reason. Set `HCP_PROXY_RELEASE_IMAGE` to
+override the suite release image. For environments that require a different valid
+create payload, set `HCP_PROXY_CREATE_REQUEST_TEMPLATE` to a JSON CreateRequest
+file. The test replaces `{{NAMESPACE}}`, `{{NAME}}`, and `{{RELEASE_IMAGE}}` and
+supplies its own `extraObjects`. The template must name its HostedCluster
+`{{NAME}}` and include one NodePool named `{{NAME}}-workers` so round-trip and
+cleanup checks can find it.
+
+The missing `supported-versions` ConfigMap failure test is destructive to a shared
+hosting-cluster resource. It is skipped unless
+`HCP_PROXY_TEST_MISSING_VERSION_CONFIGMAP=true` is explicitly set; run it only on a
+dedicated hosting cluster.
+
 **What is tested when you run the suite:** see [docs/E2E_TEST_COVERAGE.md](docs/E2E_TEST_COVERAGE.md) for a full list of tests, labels, and how to run subsets.
 
 1. Ensure go is installed

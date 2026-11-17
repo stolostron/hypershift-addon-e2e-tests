@@ -15,7 +15,7 @@
 #export MUST_GATHER_HCP_NS=
 #export MUST_GATHER_IMAGE=quay.io/stolostron/must-gather:2.9.0-SNAPSHOT-2023-10-10-18-05-35
 
-MUST_GATHER_DIR=../../results/must-gather/
+MUST_GATHER_DIR="${MUST_GATHER_DIR:-../../results/must-gather/}"
 
 if [ -z ${MUST_GATHER_IMAGE+x} ]; then
   echo "ERROR: MUST_GATHER_IMAGE is not defined"
@@ -30,7 +30,7 @@ fi
 # TODO: if no hc is found, then exit
 # TODO: if hc is not provided, then choose a random one on the hub. also set ns
 
-oc adm must-gather --image="${MUST_GATHER_IMAGE}" /usr/bin/gather hosted-cluster-namespace=:"${MUST_GATHER_HCP_NS}" hosted-cluster-name="${MUST_GATHER_HCP}" --dest-dir=${MUST_GATHER_DIR}
+oc adm must-gather --image="${MUST_GATHER_IMAGE}" /usr/bin/gather hosted-cluster-namespace="${MUST_GATHER_HCP_NS}" hosted-cluster-name="${MUST_GATHER_HCP}" --dest-dir=${MUST_GATHER_DIR}
 cd ${MUST_GATHER_DIR} || exit 1
 
 MUST_GATHER_LOGS_DIR=$(ls -d */)

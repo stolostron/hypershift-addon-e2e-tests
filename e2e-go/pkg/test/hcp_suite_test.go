@@ -6,10 +6,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	ginkgo "github.com/onsi/ginkgo/v2"
+	ginkgotypes "github.com/onsi/ginkgo/v2/types"
 	"github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	routeclient "github.com/openshift/client-go/route/clientset/versioned"
@@ -53,21 +57,23 @@ const (
 )
 
 var (
-	dynamicClient             dynamic.Interface
-	kubeClient                kubernetes.Interface
-	routeClient               routeclient.Interface
-	httpc                     *http.Client
-	clientClient              client.Client
-	addonClient               addonv1alpha1client.Interface
-	apiExtensionsClient       apiextensionsclient.Interface
-	defaultManagedCluster     string
-	defaultInstallNamespace   string
-	mceNamespace              string
-	config                    Config
-	err                       error
-	hcpCliConsoleDownloadSpec map[string]interface{}
-	curatorEnabled            string
-	fipsEnabled               string
+	dynamicClient                dynamic.Interface
+	kubeClient                   kubernetes.Interface
+	routeClient                  routeclient.Interface
+	httpc                        *http.Client
+	clientClient                 client.Client
+	addonClient                  addonv1alpha1client.Interface
+	apiExtensionsClient          apiextensionsclient.Interface
+	defaultManagedCluster        string
+	defaultInstallNamespace      string
+	mceNamespace                 string
+	config                       Config
+	err                          error
+	hcpProxyEnvironmentMissing   bool
+	hcpProxyCreatePayloadMissing bool
+	hcpCliConsoleDownloadSpec    map[string]interface{}
+	curatorEnabled               string
+	fipsEnabled                  string
 )
 
 func TestE2e(t *testing.T) {
@@ -78,8 +84,178 @@ func TestE2e(t *testing.T) {
 // This suite is sensitive to the following environment variables:
 //
 // - KUBECONFIG is the location of the kubeconfig file to use
-var _ = ginkgo.SynchronizedBeforeSuite(func() {
+func onlyHCPProxySelected() bool {
+	return hcpProxyOnlyFilter(ginkgo.GinkgoLabelFilter())
+}
+
+var hcpProxyFilterLabels = map[string]bool{
+	"hcp-proxy": true,
+	"acm-38016": true,
+	"acm-37268": true,
+	"acm-37269": true,
+	"acm-39216": true,
+	"acm-39226": true,
+	"acm-39227": true,
+	"acm-39228": true,
+	"acm-42875": true,
+}
+
+func hcpProxyOnlyFilter(filter string) bool {
+	filter = strings.TrimSpace(filter)
+	if filter == "" {
+		return false
+	}
+
+	if _, err := ginkgotypes.ParseLabelFilter(filter); err != nil {
+		return false
+	}
+
+	tokens, ok := labelFilterTokens(filter)
+	if !ok {
+		// Regex filters can match labels that are not explicitly named. Treat
+		// them as mixed/non-proxy filters rather than guessing.
+		return false
+	}
+
+	proxyLabels := make([]string, 0, len(hcpProxyFilterLabels))
+	for label := range hcpProxyFilterLabels {
+		proxyLabels = append(proxyLabels, label)
+	}
+	if !ginkgo.Label(proxyLabels...).MatchesLabelFilter(filter) {
+		return false
+	}
+
+	nonProxyTokens := make([]string, 0)
+	for _, token := range tokens {
+		if !hcpProxyFilterLabels[token] {
+			nonProxyTokens = append(nonProxyTokens, token)
+		}
+	}
+	if nonProxySubsetMatchesFilter(filter, nonProxyTokens) {
+		return false
+	}
+	return true
+}
+
+func labelFilterTokens(filter string) ([]string, bool) {
+	var tokens []string
+	runes := []rune(filter)
+	for i := 0; i < len(runes); {
+		switch runes[i] {
+		case ' ', '\t', '\r', '\n':
+			i++
+		case '&':
+			if i+1 >= len(runes) || runes[i+1] != '&' {
+				return nil, false
+			}
+			i += 2
+		case '|':
+			if i+1 >= len(runes) || runes[i+1] != '|' {
+				return nil, false
+			}
+			i += 2
+		case '!', ',', '(', ')':
+			i++
+		case '/':
+			// A regex can match labels that are not explicitly named. Treat it
+			// as a mixed/non-proxy filter rather than guessing.
+			return nil, false
+		default:
+			start := i
+			for i < len(runes) && !strings.ContainsRune(" \t\r\n&|!,()/", runes[i]) {
+				i++
+			}
+			token := strings.ToLower(strings.TrimSpace(string(runes[start:i])))
+			if token != "" {
+				tokens = append(tokens, token)
+			}
+		}
+	}
+	return tokens, true
+}
+
+func nonProxySubsetMatchesFilter(filter string, tokens []string) bool {
+	// A non-proxy spec may have any subset of the non-proxy labels mentioned by
+	// the filter (and none of the proxy labels). Enumerating those subsets lets
+	// boolean and negated filters be evaluated without hard-coding every
+	// non-proxy describe or It label.
+	if len(tokens) > 20 {
+		return true
+	}
+	for mask := uint64(0); mask < uint64(1)<<len(tokens); mask++ {
+		labels := []string{"__non_proxy__"}
+		for i, token := range tokens {
+			if mask&(uint64(1)<<i) != 0 {
+				labels = append(labels, token)
+			}
+		}
+		if ginkgo.Label(labels...).MatchesLabelFilter(filter) {
+			return true
+		}
+	}
+	return false
+}
+
+func hcpProxyKubeconfigAvailable() bool {
+	path := os.Getenv("KUBECONFIG")
+	if path == "" {
+		home, err := user.Current()
+		if err != nil {
+			return false
+		}
+		path = filepath.Join(home.HomeDir, ".kube", "config")
+	}
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+	return true
+}
+
+func initializeHCPProxySuite() {
+	defaultManagedCluster = os.Getenv("MANAGED_CLUSTER_NAME")
+	if defaultManagedCluster == "" {
+		defaultManagedCluster = utils.LocalClusterName
+	}
+	defaultInstallNamespace = "open-cluster-management-agent-addon"
+
+	if !hcpProxyKubeconfigAvailable() {
+		hcpProxyEnvironmentMissing = true
+		return
+	}
+
+	cfg, err := utils.NewKubeConfig()
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	kubeClient, err = kubernetes.NewForConfig(cfg)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	dynamicClient, err = dynamic.NewForConfig(cfg)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	httpc, err = rest.HTTPClientFor(cfg)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	addonClient, err = addonv1alpha1client.NewForConfig(cfg)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+	libgocmd.InitFlags(nil)
+	if optionsErr := utils.InitVars(); optionsErr == nil {
+		if image, imageErr := utils.GetReleaseImage(TYPE_AWS); imageErr == nil {
+			config.ReleaseImage = image
+		}
+	}
+	if image := os.Getenv("HCP_PROXY_RELEASE_IMAGE"); image != "" {
+		config.ReleaseImage = image
+	}
+	hcpProxyCreatePayloadMissing = config.ReleaseImage == "" && os.Getenv("HCP_PROXY_CREATE_REQUEST_TEMPLATE") == ""
+}
+
+var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	var err error
+
+	if onlyHCPProxySelected() {
+		return []byte{1}
+	}
 
 	defaultManagedCluster = os.Getenv("MANAGED_CLUSTER_NAME")
 	if defaultManagedCluster == "" {
@@ -237,7 +413,12 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() {
 
 	fipsEnabled, err = utils.GetFIPSEnabled()
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-}, func() {})
+	return nil
+}, func(data []byte) {
+	if len(data) > 0 {
+		initializeHCPProxySuite()
+	}
+})
 
 var _ = ginkgo.ReportAfterSuite("HyperShift E2E Report", func(report ginkgo.Report) {
 	junit_report_file := os.Getenv("JUNIT_REPORT_FILE")

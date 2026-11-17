@@ -17,21 +17,21 @@ const (
 	HCP_CONSOLE_DISPL_NAME = "hcp - Hosted Control Plane Command Line Interface (CLI)"
 	HCP_CONSOLE_DESC       = "With the Hosted Control Plane command line interface, you can create and manage OpenShift hosted clusters.\n"
 	HCP_FILE_NAME          = "hcp.tar.gz"
-	LINUX_AMD64            = "linux/amd64"
+	LINUX_AMD64            = "hcp-linux-amd64.tar.gz"
 	LINUX_AMD64_DESC       = "Download hcp CLI for Linux for x86_64"
-	LINUX_ARM64            = "linux/arm64"
+	LINUX_ARM64            = "hcp-linux-arm64.tar.gz"
 	LINUX_ARM64_DESC       = "Download hcp CLI for Linux for ARM 64"
-	MAC_AMD64              = "darwin/amd64"
+	MAC_AMD64              = "hcp-darwin-amd64.tar.gz"
 	MAC_AMD64_DESC         = "Download hcp CLI for Mac for x86_64"
-	MAC_ARM64              = "darwin/arm64"
+	MAC_ARM64              = "hcp-darwin-arm64.tar.gz"
 	MAC_ARM64_DESC         = "Download hcp CLI for Mac for ARM 64"
-	WINDOWS_AMD64          = "windows/amd64"
+	WINDOWS_AMD64          = "hcp-windows-amd64.tar.gz"
 	WINDOWS_AMD64_DESC     = "Download hcp CLI for Windows for x86_64"
 	IBM_POWER_PPC64        = "linux/ppc64"
 	IBM_POWER_PPC64_DESC   = "Download hcp CLI for Linux for IBM Power"
-	IBM_POWER_PPC64LE      = "linux/ppc64le"
+	IBM_POWER_PPC64LE      = "hcp-linux-ppc64le.tar.gz"
 	IBM_POWER_PPC64LE_DESC = "Download hcp CLI for Linux for IBM Power, little endian"
-	IBM_Z_S390X            = "linux/s390x"
+	IBM_Z_S390X            = "hcp-linux-s390x.tar.gz"
 	IBM_Z_S390X_DESC       = "Download hcp CLI for Linux for IBM Z"
 )
 
@@ -108,7 +108,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("@
 				arch := LINUX_AMD64
 				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
 				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"href": gomega.ContainSubstring(arch),
 					"text": gomega.ContainSubstring(LINUX_AMD64_DESC),
 				})))
 
@@ -123,7 +123,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("@
 				arch := LINUX_ARM64
 				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
 				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"href": gomega.ContainSubstring(arch),
 					"text": gomega.ContainSubstring(LINUX_ARM64_DESC),
 				})))
 
@@ -138,7 +138,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("@
 				arch := MAC_AMD64
 				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
 				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"href": gomega.ContainSubstring(arch),
 					"text": gomega.ContainSubstring(MAC_AMD64_DESC),
 				})))
 
@@ -153,7 +153,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("@
 				arch := MAC_ARM64
 				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
 				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"href": gomega.ContainSubstring(arch),
 					"text": gomega.ContainSubstring(MAC_ARM64_DESC),
 				})))
 
@@ -168,23 +168,8 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("@
 				arch := WINDOWS_AMD64
 				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
 				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"href": gomega.ContainSubstring(arch),
 					"text": gomega.ContainSubstring(WINDOWS_AMD64_DESC),
-				})))
-
-				ginkgo.By(fmt.Sprintf("Verifying HTTP GET on file href for os/arch %s works as expected \n", arch))
-				if links, ok := hcpCliConsoleDownloadSpec["links"].([]interface{}); ok {
-					checkConsoleCLIDownloadLink(links, arch)
-				}
-			})
-
-			ginkgo.It("should have the correct link for IBM Power (PPC64)", ginkgo.Label("e2e", "consoleLinks"), func() {
-
-				arch := IBM_POWER_PPC64
-				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
-				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
-					"text": gomega.ContainSubstring(IBM_POWER_PPC64_DESC),
 				})))
 
 				ginkgo.By(fmt.Sprintf("Verifying HTTP GET on file href for os/arch %s works as expected \n", arch))
@@ -198,7 +183,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("@
 				arch := IBM_POWER_PPC64LE
 				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
 				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"href": gomega.ContainSubstring(arch),
 					"text": gomega.ContainSubstring(IBM_POWER_PPC64LE_DESC),
 				})))
 
@@ -213,7 +198,7 @@ var _ = ginkgo.Describe("Hosted Control Plane CLI Binary Tests", ginkgo.Label("@
 				arch := IBM_Z_S390X
 				ginkgo.By(fmt.Sprintf("Verifying if href and description for os/arch %s exists and is correct\n", arch))
 				gomega.Expect(hcpCliConsoleDownloadSpec["links"]).To(gomega.ContainElement(gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-					"href": gomega.ContainSubstring(arch + "/" + HCP_FILE_NAME),
+					"href": gomega.ContainSubstring(arch),
 					"text": gomega.ContainSubstring(IBM_Z_S390X_DESC),
 				})))
 

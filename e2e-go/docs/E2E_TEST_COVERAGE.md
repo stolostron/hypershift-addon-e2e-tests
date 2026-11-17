@@ -2,6 +2,17 @@
 
 This document describes **what is tested** when you run the Hypershift addon e2e suite (`e2e-go/pkg/test`) and how to run subsets by label.
 
+The `hcp-proxy` label covers ACM-38016 against a live MCE/ACM 5.1-or-newer hub and
+hosting cluster: POST/GET/PUT/DELETE resource round-trip, Role and ConfigMap extra
+objects, extra-object apply failure, CLI finalizer deletion flow, hosting-cluster
+version data from the labeled `supported-versions` ConfigMap, and duplicate-name
+and architecture validation. Validation follows the supported caller flow: GET
+`.../validate` before POST, with failed preflights stopping before any resources
+are applied. A dedicated opt-in test also verifies that a missing
+`supported-versions` ConfigMap fails closed. See the
+[HCP proxy integration setup](../README.md#hcp-proxy-integration-acm-38016) for
+cluster, kubeconfig, release-image, and opt-in failure-test requirements.
+
 ---
 
 ## What “run all e2e tests” means
@@ -25,6 +36,7 @@ Recommended for CI or full validation:
   - Hypershift CLI version, OIDC S3 secret (AWS), hypershift operator health.
   - ConsoleCLIDownload for `hcp` CLI.
   - Loads config (instance type, base domain, region, node pool replicas, release image, namespace, pull secret, AWS creds, curator enabled, FIPS enabled).
+- **hcp-proxy-only filter:** when the label filter selects only the HCP proxy specs, BeforeSuite uses a minimal proxy bootstrap and skips the specs if no kubeconfig is available. Filters that also select non-proxy specs retain the full bootstrap above.
 
 Environment variables that affect the suite (see also README):
 
